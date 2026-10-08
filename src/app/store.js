@@ -2,7 +2,7 @@
 /** IndexedDB: analysis cache (reopening a folder is instant) and per-folder sessions
  *  (manual decisions, group names and edits). */
 const DB = "nitido", VERSION = 1;
-export const CACHE_VERSION = 6;
+export const CACHE_VERSION = 7;
 let dbp = null;
 
 function open() {

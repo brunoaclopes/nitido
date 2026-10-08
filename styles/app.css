@@ -384,6 +384,8 @@ kbd{font:inherit;font-size:11px;padding:1px 6px;border:1px solid var(--line);bor
   .search{order:11;flex-basis:100%;width:auto}
   #openBtn{display:none}
   .toolbar{padding:8px 10px;gap:8px}
+  .tabs{width:100%;justify-content:space-between}
+  .tab{padding:0 8px;gap:5px;font-size:13px}
   .tools{margin-left:0;width:100%}
   .tools .select{flex:1 1 100px;min-width:0}
   input[type=range].density{display:none}

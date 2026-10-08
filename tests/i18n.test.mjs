@@ -28,9 +28,9 @@ test("every key used in the markup and code exists", () => {
   for (const f of sources) for (const m of readFileSync(f, "utf8").matchAll(/\bt\("([\w.]+)"/g)) if (!m[1].endsWith(".")) used.add(m[1]);
   const dyn = {
     "verdict.": ["keep", "review", "reject", "error"], "verdict.tab.": ["all", "keep", "review", "reject"],
-    "reason.": ["blur", "motion", "missed", "eyes", "blink", "softer", "shake", "over", "under", "nodetail"],
-    "why.": ["blur", "motion", "missed", "eyes", "blink", "softer", "shake", "over", "under", "nodetail"],
-    "tag.": ["bokeh", "sharpAll", "smile", "laughing", "camWarn", "noise"],
+    "reason.": ["blur", "motion", "missed", "eyes", "blink", "softer", "shake", "faceSoft", "over", "under", "nodetail"],
+    "why.": ["blur", "motion", "missed", "eyes", "blink", "softer", "shake", "faceSoft", "over", "under", "nodetail"],
+    "tag.": ["bokeh", "sharpAll", "smile", "laughing", "camShake", "camFocus", "camExposure", "noise"],
     "focusOn.": ["eye", "face", "camEye", "camFace", "af", "camSubject", "subject", "tile", "none"],
     "extra.": ["all", "best", "faces", "bokeh", "changed", "manual", "starred", "noraf"],
     "bd.": ["sharp", "eyes", "expression", "exposure", "quality", "noise", "relative"],

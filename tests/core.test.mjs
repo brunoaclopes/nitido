@@ -188,6 +188,41 @@ test("eyes narrowed by a broad smile are laughing, not closed; fully shut eyes s
   const blink = evaluate(base({ faces: [face(0.75, 0.1)], targets: [{ kind: "eye", face: "f1", s: 1.4 }] }), S);
   assert.ok(blink.reasons.includes("eyes"));
 });
+test("people are the subject only when the camera focused on them", () => {
+  const face = (box, blink = 0.05) => ({ id: "f1", box, blinkL: blink, blinkR: blink, yaw: 0, smile: 0 });
+  const small = [6000, 1200, 6200, 1450], big = [2000, 1000, 2900, 2100];   // 0.13% and 2.5% of the frame
+  const soft = (id) => [{ kind: "eye", face: id, s: 3.5 }, { kind: "face", face: id, s: 3.6 }];
+  // AF sharp on a building, a soft background face with closed eyes: kept
+  const bg = evaluate(base({ af: [2000, 3000], faces: [face(small, 0.95)], targets: [...soft("f1"), { kind: "af", s: 1.1 }] }), S);
+  assert.equal(bg.verdict, "keep", bg.reasons.join());
+  assert.equal(bg.kind, "af");
+  // AF sharp elsewhere, a prominent soft face: review, not reject
+  const near = evaluate(base({ af: [6000, 3500], faces: [face(big)], targets: [...soft("f1"), { kind: "af", s: 1.1 }] }), S);
+  assert.equal(near.verdict, "review");
+  assert.deepEqual(near.reasons, ["faceSoft"]);
+  // AF on the person's body: the person is the subject again, and a soft face is a reject
+  const onBody = evaluate(base({ af: [2450, 3200], faces: [face(big)], targets: [...soft("f1"), { kind: "af", s: 1.1 }] }), S);
+  assert.equal(onBody.kind, "eye");
+  assert.equal(onBody.verdict, "reject");
+  // AF elsewhere but soft too: the faces still decide (a real miss)
+  const miss = evaluate(base({ af: [6000, 3500], faces: [face(big)], targets: [...soft("f1"), { kind: "af", s: 3.0 }] }), S);
+  assert.equal(miss.verdict, "reject");
+});
+test("overexposure is judged on the face or a mostly white frame, not on white things elsewhere", () => {
+  const face = { id: "f1", box: [2000, 1000, 2900, 2100], blinkL: 0, blinkR: 0, yaw: 0, smile: 0 };
+  const shirt = evaluate(base({ exposure: { mean: 140, p50: 120, hiClip: 0.12, satClip: 0.1, loClip: 0 }, faces: [face], targets: [{ kind: "eye", face: "f1", s: 1.1, hi: 0 }] }), S);
+  assert.ok(!shirt.reasons.includes("over"));
+  const skin = evaluate(base({ exposure: { mean: 140, p50: 120, hiClip: 0.05, satClip: 0.04, loClip: 0 }, faces: [face], targets: [{ kind: "eye", face: "f1", s: 1.1, hi: 0.4 }] }), S);
+  assert.equal(skin.overWhere, "face");
+  const white = evaluate(base({ exposure: { mean: 215, p50: 255, hiClip: 0.62, satClip: 0.6, loClip: 0 }, targets: [{ kind: "af", s: 1.1, hi: 0 }] }), S);
+  assert.equal(white.overWhere, "frame");
+});
+test("the camera's warnings are named, and its shake warning needs the measurement to agree", () => {
+  const sharp = evaluate(base({ meta: { blurWarning: 1, focusWarning: 0 }, targets: [{ kind: "af", s: 1.0 }] }), S);
+  assert.ok(!sharp.tags.some((t) => t.startsWith("cam")));
+  const soft = evaluate(base({ meta: { blurWarning: 1, focusWarning: 1, exposureWarning: 1 }, targets: [{ kind: "af", s: 2.1 }] }), S);
+  assert.deepEqual(soft.tags.filter((t) => t.startsWith("cam")), ["camShake", "camFocus", "camExposure"]);
+});
 test("bokeh is recognised and not penalised", () => {
   const cells = new Array(48).fill(null).map((_, i) => (i < 6 ? { s: 1.3, a: 1, n: 300, box: [0, 0, 1, 1] } : { s: 5, a: 1, n: 300, box: [0, 0, 1, 1] }));
   const ev = evaluate(base({ cells: { cols: 8, rows: 6, cells }, targets: [{ kind: "af", s: 1.3 }] }), S);

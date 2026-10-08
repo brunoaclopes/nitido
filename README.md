@@ -63,11 +63,11 @@ Lightroom is optional: XMP sidecars with stars, colour labels and keywords can s
 
 1. **Decode** the JPEG (or the RAF's embedded preview) in a worker, in horizontal strips, never holding a full-size canvas.
 2. **Find faces and subjects** with MediaPipe: blink probability per eye, smile, head turn, and objects such as cars, animals and people.
-3. **Choose where to measure**, in this order: the main face's eyes, the face, the camera's own eye and face boxes, the AF point, the camera's subject box, the detected subject, and finally the sharpest area of the frame.
+3. **Choose where to measure**, in this order: the main face's eyes, the face, the camera's own eye and face boxes, the AF point, the camera's subject box, the detected subject, and finally the sharpest area of the frame. People count as the subject only when the camera focused on them: when it focused sharply on something else, background people are ignored and a prominent soft face only asks for a look (*Person out of focus*).
 4. **Measure blur at 100%** as edge width in pixels, with the re-blur method of Zhuo & Sim sampled on edge centre lines only. Contrast and texture do not change the reading, so a lone crisp edge on smooth car paint or sky measures as sharp.
 5. **Compare with neighbours**: a frame much softer at a coarse scale than a similar one shot seconds apart is flagged as shaken, which catches shake that film grain hides.
 6. **CLIP** (optional) gives the similarity used for grouping, a quality score and a name for each group ("Sea and beach · 09:31").
-7. **Verdict and score**: Keep, Review or Reject with reasons, and a 0–100 score to pick the best of each group. Intentional background blur is recognised and not penalised; eyes narrowed by a laugh are not counted as closed.
+7. **Verdict and score**: Keep, Review or Reject with reasons, and a 0–100 score to pick the best of each group. Intentional background blur is recognised and not penalised; eyes narrowed by a laugh are not counted as closed; *Overexposed* means blown skin on the main face or a frame that is mostly pure white, not a white shirt or a sunlit wall. The camera's own flags are named (shake risk, focus not confirmed, exposure), and its shake flag is shown only when the measured blur agrees.
 
 **Fujifilm details.** `FocusPixel` is read in the JPEG's own pixel frame (confirmed on 51 sample files, X-H2 included, by the [riffle](https://github.com/minodisk/riffle) project) and ignored in manual focus, where the camera writes a stale point. The camera's own face, eye and subject boxes are used too. Default limits were calibrated on X-H2 files: sharp frames read 0.7–1.4 px, visibly soft ones 2 px and up.
 
@@ -145,11 +145,11 @@ O Lightroom é opcional: os XMP com estrelas, etiquetas de cor e palavras-chave 
 
 1. **Descodifica** o JPEG (ou a pré-visualização do RAF) num worker, em faixas, sem nunca criar um canvas do tamanho da foto.
 2. **Encontra rostos e sujeitos** com MediaPipe: probabilidade de piscar de cada olho, sorriso, orientação do rosto, e objetos como carros, animais e pessoas.
-3. **Escolhe onde medir**, por esta ordem: olhos do rosto principal, rosto, olhos e rosto detetados pela câmara, ponto de AF, sujeito da câmara, sujeito detetado e, por fim, a zona mais nítida.
+3. **Escolhe onde medir**, por esta ordem: olhos do rosto principal, rosto, olhos e rosto detetados pela câmara, ponto de AF, sujeito da câmara, sujeito detetado e, por fim, a zona mais nítida. As pessoas só contam como sujeito quando a câmara focou nelas: se focou nítido noutra coisa, as pessoas ao fundo são ignoradas e um rosto grande desfocado só pede para veres (*Pessoa desfocada*).
 4. **Mede o desfoque a 100%** em píxeis de largura de aresta (método de re-blur de Zhuo & Sim, medido só no centro das arestas). Não depende do contraste nem da textura, por isso uma aresta nítida numa pintura lisa ou no céu mede como nítida.
 5. **Compara com as vizinhas**: uma foto muito menos nítida a escala grosseira do que uma parecida tirada segundos antes ou depois é marcada como tremida; isto apanha o tremido que o grão esconde.
 6. **CLIP** (opcional) dá a semelhança para agrupar, uma pontuação de qualidade e um nome para cada grupo ("Mar e praia · 09:31").
-7. **Veredicto e pontuação**: Manter, Rever ou Rejeitar com motivos, e uma pontuação de 0 a 100 para escolher a melhor do grupo. O fundo desfocado intencional não penaliza, e olhos semicerrados a rir não contam como fechados.
+7. **Veredicto e pontuação**: Manter, Rever ou Rejeitar com motivos, e uma pontuação de 0 a 100 para escolher a melhor do grupo. O fundo desfocado intencional não penaliza, olhos semicerrados a rir não contam como fechados, e *Sobre-exposta* quer dizer pele queimada no rosto principal ou uma imagem quase toda branca, não uma camisa branca ou uma parede ao sol. Os avisos da própria câmara aparecem com nome (risco de tremido, foco não confirmado, exposição), e o de tremido só quando o desfoque medido o confirma.
 
 **Detalhes Fujifilm.** O `FocusPixel` é lido no referencial do próprio JPEG (confirmado em 51 ficheiros, X-H2 incluída, pelo projeto [riffle](https://github.com/minodisk/riffle)) e ignorado em foco manual, onde a câmara escreve um ponto antigo. Os rostos, olhos e sujeitos detetados pela câmara também são usados. Os limites por omissão foram calibrados com ficheiros da X-H2: fotos nítidas medem 0,7–1,4 px, as visivelmente desfocadas 2 px ou mais.
 

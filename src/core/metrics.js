@@ -110,12 +110,12 @@ export function edgeBlur(G, sig) {
 /** Luminance histogram statistics from RGBA data. */
 export function exposureStats(data) {
   const hist = new Uint32Array(256);
-  let hi = 0, lo = 0, n = 0;
+  let hi = 0, sat = 0, lo = 0, n = 0;
   for (let j = 0; j < data.length; j += 4) {
     const r = data[j], g = data[j + 1], b = data[j + 2];
     hist[(0.299 * r + 0.587 * g + 0.114 * b) | 0]++;
     // blown = white with no detail left; one saturated channel (a red dress, a blue sky) is not
-    if (r >= 250 && g >= 250 && b >= 250) hi++;
+    if (r >= 250 && g >= 250 && b >= 250) { hi++; if (r >= 254 && g >= 254 && b >= 254) sat++; }
     if (r <= 3 && g <= 3 && b <= 3) lo++;
     n++;
   }
@@ -127,7 +127,7 @@ export function exposureStats(data) {
     if (prev < n * 0.5 && acc >= n * 0.5) p50 = i;
     if (prev < n * 0.99 && acc >= n * 0.99) p99 = i;
   }
-  return { mean: n ? sum / n : 0, p01, p50, p99, hiClip: n ? hi / n : 0, loClip: n ? lo / n : 0 };
+  return { mean: n ? sum / n : 0, p01, p50, p99, hiClip: n ? hi / n : 0, satClip: n ? sat / n : 0, loClip: n ? lo / n : 0 };
 }
 
 const DCT = (() => { const c = []; for (let u = 0; u < 8; u++) { const r = new Float32Array(32); for (let x = 0; x < 32; x++) r[x] = Math.cos((2 * x + 1) * u * Math.PI / 64); c.push(r); } return c; })();

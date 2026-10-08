@@ -5,7 +5,7 @@ import { S, SESSION, UI, touchSession, emit, saveSettings } from "../app/state.j
 import { cmpNatural } from "../core/util.js";
 
 const gallery = () => $("#gallery");
-export const REASONS = ["blur", "motion", "missed", "eyes", "blink", "softer", "shake", "over", "under", "nodetail"];
+export const REASONS = ["blur", "motion", "missed", "eyes", "blink", "softer", "shake", "faceSoft", "over", "under", "nodetail"];
 const BAD = new Set(["blur", "motion", "missed", "eyes"]);
 export const LABEL_COLORS = { Red: "--lbl-red", Yellow: "--lbl-yellow", Green: "--lbl-green", Blue: "--lbl-blue", Purple: "--lbl-purple" };
 

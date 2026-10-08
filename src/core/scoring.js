@@ -20,19 +20,46 @@ export const sharpThreshold = (S) => S.sharpPx ?? STRICTNESS[S.strictness] ?? ST
 const SMILE = 0.6, SHUT = 0.9;
 /** Coarse-blur ratio to a similar neighbouring frame that flags shake. */
 const SHAKE_RATIO = 1.6;
+/** Blown share of the main face, and of the whole frame (with a bright median), that counts as overexposed. */
+const FACE_BLOWN = 0.15, FRAME_BLOWN = 0.5;
+/** A face this big (share of the frame) is worth a look even when the camera focused elsewhere. */
+const PROMINENT = 0.015;
+/** Half-size of the area around a Zone or Wide AF centre (share of the frame) that may hold the subject. */
+const ZONE = 0.12;
 
 /** Order in which focus evidence is trusted. */
 const PRIORITY = ["eye", "face", "camEye", "camFace", "af", "camSubject", "subject"];
 
-/** Main faces (ignores small background faces) and the key face. */
+/** Face, head and torso region of a person, from the face box: an AF point there means "this person". */
+export function personBox(f) {
+  const w = f.box[2] - f.box[0], h = f.box[3] - f.box[1];
+  return [f.box[0] - w, f.box[1] - 0.5 * h, f.box[2] + w, f.box[3] + 3.5 * h];
+}
+
+/** Main faces (ignores small background faces), the faces that are the subject, and the key face.
+ *  When the camera focused, sharply, on something that is not a person, the people in the frame are
+ *  not the subject: their focus and eyes do not decide the verdict, and a prominent soft face only
+ *  asks for a look ("aside"). */
 export function faceSummary(item, S) {
   const faces = item.faces || [];
-  if (!faces.length) return { count: 0, main: [], key: null };
+  if (!faces.length) return { count: 0, main: [], subjects: [], aside: [], key: null };
   const imgArea = item.W * item.H;
   const maxA = Math.max(...faces.map((f) => boxArea(f.box)));
   const main = faces.filter((f) => boxArea(f.box) >= maxA * 0.25 && boxArea(f.box) >= imgArea * 0.0012);
-  let key = main.reduce((a, f) => (boxArea(f.box) > boxArea(a.box) ? f : a), main[0]);
-  if (item.af) { const hit = main.find((f) => contains(f.box, item.af[0], item.af[1])); if (hit) key = hit; }
+  const af = item.af, afT = (item.targets || []).find((t) => t.kind === "af" && t.s != null);
+  const onAf = af ? main.filter((f) => contains(personBox(f), af[0], af[1])) : [];
+  // In Zone and Wide modes the camera records the area's centre, not the spot it focused on
+  const area = item.meta?.afMode === 256 || item.meta?.afMode === 512;
+  const zone = af && area ? [af[0] - ZONE * item.W, af[1] - ZONE * item.H, af[0] + ZONE * item.W, af[1] + ZONE * item.H] : null;
+  const meets = (a, b) => a[0] < b[2] && b[0] < a[2] && a[1] < b[3] && b[1] < a[3];
+  let subjects = main, aside = [];
+  if (af && afT && afT.s <= sharpThreshold(S) && !onAf.length) {
+    subjects = [];
+    aside = main.filter((f) => boxArea(f.box) >= imgArea * PROMINENT || (zone && meets(personBox(f), zone)));
+  }
+  const largest = (list) => list.reduce((a, f) => (boxArea(f.box) > boxArea(a.box) ? f : a), list[0]);
+  let key = subjects.length ? largest(subjects) : null;
+  if (key && onAf.length) key = onAf.find((f) => contains(f.box, af[0], af[1])) || largest(onAf);
   const thr = S.blinkThr;
   const state = (f) => {
     const frontal = Math.abs(f.yaw ?? 0) < 0.65;
@@ -48,12 +75,12 @@ export function faceSummary(item, S) {
   };
   const st = new Map(main.map((f) => [f, state(f)]));
   return {
-    count: faces.length, main, key, st,
+    count: faces.length, main, subjects, aside, key, st,
     keyClosed: key ? st.get(key).closed : false,
-    anyClosed: main.some((f) => st.get(f).closed),
-    anyPartial: main.some((f) => st.get(f).partial),
+    anyClosed: subjects.some((f) => st.get(f).closed),
+    anyPartial: subjects.some((f) => st.get(f).partial),
     keySquint: key ? st.get(key).squint : false,
-    openScore: key ? (S.eyesRule === "all" ? Math.min(...main.map((f) => st.get(f).open)) : st.get(key).open) : 1,
+    openScore: key ? (S.eyesRule === "all" ? Math.min(...subjects.map((f) => st.get(f).open)) : st.get(key).open) : 1,
     smile: key ? key.smile ?? 0 : 0,
   };
 }
@@ -108,12 +135,26 @@ export function evaluate(item, S, ctx = {}) {
     if (S.eyesRule === "all" ? fs.anyClosed : fs.keyClosed) reasons.push("eyes");
     else if (fs.anyPartial) reasons.push("blink");
   }
+  // focused elsewhere on purpose, maybe: a prominent person who is soft is worth a look, not a reject
+  if (fs.aside?.length && !reasons.length) {
+    const ids = new Set(fs.aside.map((f) => f.id));
+    // the eyes first, as for the main focus; the face box only when no eye could be measured
+    const of = (kind) => (item.targets || []).filter((t) => t.kind === kind && ids.has(t.face) && t.s != null).map((t) => t.s);
+    const fsS = of("eye").length ? of("eye") : of("face");
+    if (fsS.length && Math.min(...fsS) > T * 1.15) reasons.push("faceSoft");
+  }
+  // Overexposed means detail lost where it matters: blown skin on the main face, or a frame that is
+  // mostly pure white. A white shirt, a sunlit wall or a bright sky elsewhere is not a fault.
   const ex = item.exposure;
-  let exScore = 1;
+  const faceTarget = focus && (focus.kind === "eye" || focus.kind === "face" || focus.kind === "camEye" || focus.kind === "camFace");
+  const subjHi = focus?.target?.hi ?? 0, sat = ex?.satClip ?? ex?.hiClip ?? 0;
+  let exScore = 1, overWhere = null;
   if (ex && S.exposureCheck) {
-    if (ex.hiClip > 0.04) reasons.push("over");
+    if (faceTarget && subjHi >= FACE_BLOWN) overWhere = "face";
+    else if (sat >= FRAME_BLOWN && ex.p50 >= 200) overWhere = "frame";
+    if (overWhere) reasons.push("over");
     else if (ex.loClip > 0.18 || ex.mean < 32) reasons.push("under");
-    exScore = clamp(1 - ex.hiClip * 10 - Math.max(0, ex.loClip - 0.05) * 3 - Math.abs(ex.p50 - 118) / 340, 0, 1);
+    exScore = clamp(1 - (faceTarget ? subjHi * 3 : 0) - Math.max(0, sat - 0.15) * 1.5 - Math.max(0, ex.loClip - 0.05) * 3 - Math.abs(ex.p50 - 118) / 340, 0, 1);
   }
   let rel = 1;
   if (ctx.groupBest && s != null) {
@@ -128,7 +169,11 @@ export function evaluate(item, S, ctx = {}) {
   else if (p >= 0.6 && sharpFrac >= 0.6) tags.push("sharpAll");
   if (fs.key && fs.smile > 0.45) tags.push(fs.keySquint ? "laughing" : "smile");
   // The X-H2 sets its shake warning on many sharp frames, so it is shown only when the measurement agrees
-  if (item.meta?.focusWarning === 1 || (item.meta?.blurWarning === 1 && p < 0.6)) tags.push("camWarn");
+  // The camera's own flags (Fuji MakerNote). Its shake warning only means a slow shutter for the
+  // focal length, and is set on many sharp frames, so it is shown only when the measurement agrees.
+  if (item.meta?.blurWarning === 1 && p < 0.6) tags.push("camShake");
+  if (item.meta?.focusWarning === 1) tags.push("camFocus");
+  if (item.meta?.exposureWarning === 1) tags.push("camExposure");
 
   const breakdown = {
     sharp: 45 * p,
@@ -144,14 +189,14 @@ export function evaluate(item, S, ctx = {}) {
   score = clamp(score, 0, 100);
 
   const hard = ["blur", "motion", "missed"].some((r) => reasons.includes(r)) || (S.rejectEyes && reasons.includes("eyes"));
-  let verdict = hard ? "reject" : p < 0.6 || reasons.some((r) => ["blink", "over", "under", "softer", "shake", "nodetail", "eyes"].includes(r)) ? "review" : "keep";
+  let verdict = hard ? "reject" : p < 0.6 || reasons.some((r) => ["blink", "over", "under", "softer", "shake", "faceSoft", "nodetail", "eyes"].includes(r)) ? "review" : "keep";
   let pKeep = null;
   if (ctx.personal) {
     pKeep = ctx.personal(item, { p, s, fs, rel, motion, exScore });
     verdict = pKeep < 0.35 ? "reject" : pKeep < 0.6 ? "review" : "keep";
   }
   return { p, pA, s, T, kind: focus ? focus.kind : best != null ? "tile" : null, target: focus?.target ?? null,
-    best, rel, shakeRel, motion, softFrac, sharpFrac, reasons, tags, verdict, score, breakdown, faces: fs, pKeep };
+    best, rel, shakeRel, overWhere, subjHi, motion, softFrac, sharpFrac, reasons, tags, verdict, score, breakdown, faces: fs, pKeep };
 }
 
 /** Best photo of a group: highest score among non-rejects; a manual pick always wins. */

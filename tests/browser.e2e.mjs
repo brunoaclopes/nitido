@@ -190,6 +190,17 @@ try {
     writeFileSync(resolve(expand(opt("dump"))), JSON.stringify(rows, null, 1));
     console.log(`measurements: ${resolve(expand(opt("dump")))}`);
   }
+  if (opt("dump-full")) {
+    const json = await evaluate(`import(new URL("src/app/state.js", location.href).href).then(({ SESSION }) => JSON.stringify(SESSION.items.map((it) => {
+      const o = {};
+      for (const k of ["path", "name", "raf", "isRaf", "meta", "time", "W", "H", "exposure", "faces", "objects", "af", "sigma", "coarse", "cells", "best", "targets", "clip", "desc"]) o[k] = it[k];
+      if (o.desc) o.desc = { ...o.desc, c: Array.from(o.desc.c || []) };
+      o.verdict = it.verdict; o.reasons = it.ev?.reasons;
+      return o;
+    })))`);
+    writeFileSync(resolve(expand(opt("dump-full"))), json);
+    console.log(`full measurements: ${resolve(expand(opt("dump-full")))}`);
+  }
   sum.cards >= chosen.size ? ok("every photo has a card") : fail(`${sum.cards} cards for ${chosen.size} photos`);
   sum.errors.length ? fail("photos in error: " + sum.errors.join(", ")) : ok("no photo in error");
   /ready|pronto/i.test(sum.ai) ? ok("models ready") : fail("models: " + sum.ai);

@@ -53,7 +53,7 @@ function syncViews() {
 export function toggleView(k) { S[k] = !S[k]; saveSettings(); syncViews(); }
 
 const VCOL = { keep: "--good", review: "--doubt", reject: "--bad" };
-const REASON_CLASS = { blur: "bad", motion: "bad", missed: "bad", eyes: "bad", blink: "warn", softer: "warn", shake: "warn", over: "warn", under: "warn", nodetail: "warn" };
+const REASON_CLASS = { blur: "bad", motion: "bad", missed: "bad", eyes: "bad", blink: "warn", softer: "warn", shake: "warn", faceSoft: "warn", over: "warn", under: "warn", nodetail: "warn" };
 
 function explain(it) {
   const ev = it.ev, parts = [];
@@ -61,10 +61,15 @@ function explain(it) {
   const on = t("focusOn." + (ev.kind || "none"));
   if (ev.s != null) parts.push(t("why.measured", { on, px: fmtPx(ev.s), t: fmtPx(ev.T), p: Math.round(ev.p * 100) }));
   for (const r of ev.reasons) {
-    const vars = { px: fmtPx(ev.s), best: fmtPx(ev.best), rel: fmtNum(r === "shake" ? ev.shakeRel : ev.rel, 1), pct: fmtPct(it.exposure?.hiClip) };
-    parts.push(t("why." + r, vars));
+    const vars = { px: fmtPx(ev.s), best: fmtPx(ev.best), rel: fmtNum(r === "shake" ? ev.shakeRel : ev.rel, 1),
+      pct: fmtPct(ev.overWhere === "face" ? ev.subjHi : it.exposure?.satClip ?? it.exposure?.hiClip) };
+    parts.push(t(r === "over" && ev.overWhere === "frame" ? "why.overFrame" : "why." + r, vars));
   }
   if (ev.tags.includes("bokeh")) parts.push(t("why.bokeh", { pct: fmtPct(ev.softFrac) }));
+  const m = it.meta || {};
+  if (ev.tags.includes("camShake")) parts.push(t("why.camShake", { shutter: fmtShutter(m.exposure), focal: m.focal ? `${Math.round(m.focal)} mm` : "–" }));
+  if (ev.tags.includes("camFocus")) parts.push(t("why.camFocus"));
+  if (ev.tags.includes("camExposure")) parts.push(t("why.camExposure"));
   if (ev.pKeep != null) parts.push(t("why.personal", { p: Math.round(ev.pKeep * 100) }));
   if (it.manual?.flag) parts.push(t("why.manual"));
   return parts.join(" ");
@@ -116,7 +121,7 @@ export function render(newImage = false) {
   $("#lbWhy").textContent = explain(it);
   if (it.error) { $("#lbTags").innerHTML = ""; }
   else $("#lbTags").innerHTML = [...ev.reasons.map((r) => `<span class="${REASON_CLASS[r] || ""}">${esc(t("reason." + r))}</span>`),
-    ...ev.tags.map((g) => `<span class="${g === "noise" || g === "camWarn" ? "warn" : "good"}">${esc(t("tag." + g))}</span>`)].join("");
+    ...ev.tags.map((g) => `<span class="${g === "noise" || g.startsWith("cam") ? "warn" : "good"}">${esc(t("tag." + g))}</span>`)].join("");
   $$("#flagSeg button").forEach((b) => b.setAttribute("aria-pressed", String((it.manual?.flag || "") === b.dataset.flag)));
   const r = it.manual?.rating || 0;
   $("#starsIn").innerHTML = [1, 2, 3, 4, 5].map((n) => `<button data-star="${n}" class="${n <= r ? "on" : ""}" aria-label="${n}">★</button>`).join("");
@@ -182,7 +187,8 @@ export function render(newImage = false) {
     [t("fact.af"), afMode], [t("fact.size"), W0 ? `${W0}×${H0}` : "–"], [t("fact.camera"), [m.model, m.lens].filter(Boolean).join(" · ") || "–"],
     [t("fact.raf"), it.isRaf ? t("fact.rafOnly") : it.raf ? t("fact.rafYes") : t("fact.rafNo")],
   ];
-  if (m.focusWarning === 1 || m.blurWarning === 1) facts.push([t("fact.camWarn"), t("tag.camWarn"), true]);
+  const camFlags = [m.blurWarning === 1 && t("fact.warnShake"), m.focusWarning === 1 && t("fact.warnFocus"), m.exposureWarning === 1 && t("fact.warnExposure")].filter(Boolean);
+  if (camFlags.length) facts.push([t("fact.camWarn"), camFlags.join(", "), true]);
   $("#facts").innerHTML = facts.map(([k, val, warn]) => `<dt>${esc(k)}</dt><dd class="${warn ? "warn" : ""}">${esc(val)}</dd>`).join("");
 
   if (newImage) loadImage(it);

@@ -142,15 +142,20 @@ export async function measure(bmp, plan) {
 
   const targets = plan.targets.map((t, ti) => {
     const res = [];
+    let hi = 0, px = 0;
     for (const box of probeSets[ti]) {
-      const e = edgeBlur(grays[p++], sigma);
+      const gr = grays[p++], e = edgeBlur(gr, sigma);
+      // share of the target that is blown white: judged where the photo is judged, not over the frame
+      for (let i = 0; i < gr.g.length; i++) if (gr.g[i] >= 250) hi++;
+      px += gr.g.length;
       if (e) res.push({ s: e.s * scale, a: e.a, n: e.n, c: e.contrast, box });
     }
-    if (!res.length) return { id: t.id, kind: t.kind, box: t.box, s: null, n: 0 };
+    const hiFrac = px ? hi / px : 0;
+    if (!res.length) return { id: t.id, kind: t.kind, box: t.box, s: null, n: 0, hi: hiFrac };
     res.sort((a, b) => a.s - b.s);
     const s = res.length > 1 ? (res[0].s + res[1].s) / 2 : res[0].s;
     const an = res.filter((r) => r.a).slice(0, 3).map((r) => r.a);
-    return { id: t.id, kind: t.kind, box: t.box, s, n: res.reduce((a, r) => a + r.n, 0), probe: res[0].box,
+    return { id: t.id, kind: t.kind, box: t.box, s, hi: hiFrac, n: res.reduce((a, r) => a + r.n, 0), probe: res[0].box,
       a: an.length ? an.reduce((a, b) => a + b, 0) / an.length : null };
   });
 
