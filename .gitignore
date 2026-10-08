@@ -1,3 +1,6 @@
 node_modules/
 models/
 .DS_Store
+
+# third-party Claude Code skills, kept local (licences vary)
+.claude/skills/

@@ -15,6 +15,7 @@
 <link rel="stylesheet" href="styles/app.css">
 </head>
 <body>
+<a class="skip" href="#scroller" data-i18n="a11y.skip"></a>
 <div class="app" id="app" data-state="empty">
   <header class="top">
     <button class="icon-btn menu-btn" id="menuBtn" data-i18n-attr="aria-label:top.panel" aria-controls="side" aria-expanded="false">
@@ -105,7 +106,7 @@
       </div>
     </details>
 
-    <details class="group" open>
+    <details class="group">
       <summary data-i18n="side.focus"></summary>
       <div class="field"><label for="f-sharpPx" data-i18n="f.sharpPx"></label><output id="o-sharpPx" class="num"></output>
         <input type="range" id="f-sharpPx" min="0.8" max="5" step="0.1"><p class="hint" data-i18n="f.sharpPxHint"></p></div>
@@ -119,7 +120,7 @@
         <input type="range" id="f-bokehPct" min="20" max="90" step="5"><p class="hint" data-i18n="f.bokehHint"></p></div>
     </details>
 
-    <details class="group" open>
+    <details class="group">
       <summary data-i18n="side.people"></summary>
       <div class="field"><label for="f-blinkThr" data-i18n="f.blink"></label><output id="o-blinkThr" class="num"></output>
         <input type="range" id="f-blinkThr" min="0.25" max="0.85" step="0.05"><p class="hint" data-i18n="f.blinkHint"></p></div>
@@ -129,7 +130,7 @@
       <label class="check"><input type="checkbox" id="f-exposureCheck"> <span data-i18n="f.exposure"></span></label>
     </details>
 
-    <details class="group" open>
+    <details class="group">
       <summary data-i18n="side.groups"></summary>
       <div class="field col"><label for="f-groupMode" data-i18n="g.mode"></label>
         <select class="select" id="f-groupMode">

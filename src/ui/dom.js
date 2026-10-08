@@ -31,9 +31,18 @@ export function fmtDuration(s) {
 }
 
 let toastTimer;
-export function toast(msg, ms = 4800) {
+/** A short message at the bottom; with an action (such as Undo) it stays longer and can be pressed. */
+export function toast(msg, ms = 4800, action = null) {
   const n = $("#toast");
   n.textContent = msg;
+  n.classList.toggle("with-action", !!action);
+  if (action) {
+    const b = el("button", { class: "btn small" });
+    b.textContent = action.label;
+    b.addEventListener("click", () => { n.classList.remove("show"); action.run(); }, { once: true });
+    n.appendChild(b);
+    ms = Math.max(ms, 7000);
+  }
   n.classList.add("show");
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => n.classList.remove("show"), ms);

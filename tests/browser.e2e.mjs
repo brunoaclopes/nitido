@@ -118,6 +118,9 @@ async function until(expr, ms, what) {
 }
 async function viewport(width, height, mobile = false) {
   await page("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: 1, mobile });
+  // a phone has a touch screen: (pointer: coarse) styles apply
+  await page("Emulation.setTouchEmulationEnabled", { enabled: mobile, maxTouchPoints: mobile ? 5 : 1 });
+  await page("Emulation.setEmulatedMedia", { features: [{ name: "pointer", value: mobile ? "coarse" : "fine" }, { name: "hover", value: mobile ? "none" : "hover" }] });
   await sleep(350);
 }
 async function shot(name) {
@@ -142,6 +145,46 @@ const overflowReport = (scope) => evaluate(`(() => {
   return [...new Set(out)].slice(0, 15);
 })()`);
 
+/** UI audit (--audit): contrast, target size, tiny text, unnamed controls, alt text, in the current view. */
+const AUDIT = {};
+async function audit(view, mobile = false) {
+  if (!flag("audit")) return;
+  const found = await evaluate(`(() => {
+    const out = [], vis = (n) => n.getClientRects().length && getComputedStyle(n).visibility !== "hidden" && !n.closest("[hidden]");
+    const rgb = (c) => { const m = c.match(/[\\d.]+/g); return m ? m.map(Number) : [0, 0, 0, 0]; };
+    const lum = ([r, g, b]) => { const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b); };
+    const bgOf = (n) => { for (let e = n; e; e = e.parentElement) { const c = rgb(getComputedStyle(e).backgroundColor); if ((c[3] ?? 1) > 0.5) return c; } return [27, 27, 28]; };
+    const name = (n) => (n.id ? "#" + n.id : n.tagName.toLowerCase() + (n.className && typeof n.className === "string" ? "." + n.className.trim().split(/\\s+/)[0] : "")) + (n.textContent.trim() ? " “" + n.textContent.trim().slice(0, 24) + "”" : "");
+    for (const n of document.querySelectorAll("body *")) {
+      if (!vis(n)) continue;
+      const cs = getComputedStyle(n), own = [...n.childNodes].some((c) => c.nodeType === 3 && c.textContent.trim());
+      if (own && +cs.opacity > 0.2) {
+        const fg = rgb(cs.color), bg = bgOf(n), a = fg[3] ?? 1, mix = fg.slice(0, 3).map((v, i) => v * a + bg[i] * (1 - a));
+        const L1 = lum(mix), L2 = lum(bg), ratio = (Math.max(L1, L2) + 0.05) / (Math.min(L1, L2) + 0.05), px = parseFloat(cs.fontSize);
+        const large = px >= 24 || (px >= 18.6 && +cs.fontWeight >= 600);
+        if (ratio < (large ? 3 : 4.5) && !n.closest("button:disabled,.pending,[aria-disabled=true]")) out.push(["contrast", name(n), ratio.toFixed(2) + ":1 " + cs.color]);
+        if (px < 12) out.push(["tiny-text", name(n), px + "px"]);
+      }
+      if (n.matches("button,a[href],input:not([type=hidden]),select,[role=button],[tabindex='0']")) {
+        const r = n.getBoundingClientRect(), min = ${mobile} ? 44 : 24;
+        const target = n.matches("input[type=checkbox],input[type=radio]") ? (n.closest("label") || n).getBoundingClientRect() : r;
+        if ((target.width < min || target.height < min) && !n.matches(".card,[tabindex='-1']")) out.push(["target", name(n), Math.round(target.width) + "×" + Math.round(target.height)]);
+        const label = n.getAttribute("aria-label") || n.getAttribute("title") || n.textContent.trim() || (n.id && document.querySelector('label[for="' + n.id + '"]')?.textContent.trim()) || n.closest("label")?.textContent.trim() || n.getAttribute("placeholder");
+        if (!label && !n.matches(".card")) out.push(["no-name", name(n), n.outerHTML.slice(0, 80)]);
+      }
+      if (n.tagName === "IMG" && !n.hasAttribute("alt")) out.push(["no-alt", name(n), ""]);
+    }
+    return out;
+  })()`);
+  for (const [kind, what, detail] of found) (AUDIT[kind + " " + what] ||= { kind, what, detail, views: new Set() }).views.add(view);
+}
+function printAudit() {
+  if (!flag("audit")) return;
+  const rows = Object.values(AUDIT).sort((a, b) => a.kind.localeCompare(b.kind) || a.what.localeCompare(b.what));
+  console.log(`\nUI audit: ${rows.length} findings`);
+  for (const r of rows) console.log(`  ${r.kind.padEnd(10)} ${r.what.slice(0, 60).padEnd(60)} ${r.detail.padEnd(28)} [${[...r.views].join(", ")}]`);
+}
+
 let failed = false;
 const fail = (msg) => { failed = true; console.log("  ✗ " + msg); };
 const ok = (msg) => console.log("  ✓ " + msg);
@@ -154,6 +197,7 @@ try {
   await until(`document.readyState === "complete" && document.querySelector("[data-lang=en]")?.getAttribute("aria-pressed") === "true"`, 20000, "English UI");
   if (!flag("keep-cache")) await evaluate(`new Promise((r) => { const q = indexedDB.deleteDatabase("nitido"); q.onsuccess = q.onerror = q.onblocked = () => r(true); })`);
   await shot("01-empty-1440");
+  await audit("empty");
   ok("empty screen");
 
   /* ---------- analyse ---------- */
@@ -165,6 +209,21 @@ try {
   await until(`document.querySelector("#app").dataset.state !== "empty"`, 20000, "analysis to start");
   await sleep(1500);
   await shot("02-loading");
+  // change the language, filters and sort while photos are still coming in: no photo may drop out of the gallery
+  await until(`document.querySelector("#app").dataset.state === "session"`, 10 * 60000, "the first photos");
+  if (!(await evaluate(`document.querySelector("#progress").hidden`))) {
+    const lost = () => evaluate(`import(new URL("src/app/state.js", location.href).href).then(({ SESSION }) => SESSION.items.filter((i) => !i.card?.isConnected).map((i) => i.name))`);
+    await sleep(2000);
+    await click('.lang button[data-lang="pt"]'); await sleep(1500);
+    await evaluate(`(() => { const s = document.querySelector("#sortSel"); s.value = "time"; s.dispatchEvent(new Event("change")); return true; })()`); await sleep(1500);
+    await click('.lang button[data-lang="en"]'); await sleep(1500);
+    await evaluate(`(() => { const s = document.querySelector("#extraSel"); s.value = "faces"; s.dispatchEvent(new Event("change")); return true; })()`); await sleep(2500);
+    const kept = await evaluate(`document.querySelector("#extraSel").value`);
+    const gone = await lost();
+    gone.length ? fail(`photos missing from the gallery after changes during analysis: ${gone.slice(0, 5).join(", ")}`) : ok("gallery keeps every photo through language, sort and filter changes during analysis");
+    kept === "faces" ? ok("a filter chosen during analysis stays chosen") : fail(`filter reset during analysis to "${kept}"`);
+    await evaluate(`(() => { const s = document.querySelector("#extraSel"); s.value = "all"; s.dispatchEvent(new Event("change")); const o = document.querySelector("#sortSel"); o.value = "score"; o.dispatchEvent(new Event("change")); return true; })()`);
+  }
   await until(`document.querySelector("#app").dataset.state === "session" && document.querySelector("#progress").hidden`, 30 * 60000, "analysis to finish");
   const secs = (Date.now() - t0) / 1000;
   const tClip0 = Date.now();
@@ -231,10 +290,22 @@ try {
   await shot("03-ai-tier");
   console.log("  tier: " + await evaluate(`document.querySelector("#tierInfo").textContent + " | " + document.querySelector("#tierSuggest").textContent`));
 
+  /* ---------- undo a bulk decision from the toast ---------- */
+  const undone = await evaluate(`import(new URL("src/app/state.js", location.href).href).then(async ({ SESSION, emit }) => {
+    const two = SESSION.items.filter((i) => i.ready && !i.error && !i.manual).slice(0, 2);
+    emit("manual", { items: two, patch: { flag: "reject", why: "group" } });
+    const rejected = two.every((i) => i.manual?.flag === "reject");
+    document.querySelector("#toast button")?.click();
+    await new Promise((r) => setTimeout(r, 200));
+    return { rejected, restored: two.every((i) => !i.manual), n: two.length };
+  })`);
+  undone.rejected && undone.restored && undone.n === 2 ? ok("Undo restores a bulk reject") : fail("undo: " + JSON.stringify(undone));
+
   /* ---------- gallery at several widths ---------- */
   for (const [w, h, mobile] of [[1440, 900], [1100, 800], [820, 1000], [390, 844, true]]) {
     await viewport(w, h, mobile);
     await shot(`03-gallery-${w}`);
+    await audit(`gallery ${w}`, !!mobile);
     const o = await overflowReport(".main");
     o.length ? fail(`gallery overflows at ${w}px: ${o.join("; ")}`) : ok(`gallery fits at ${w}px`);
   }
@@ -242,6 +313,7 @@ try {
   await viewport(390, 844, true);
   await click("#menuBtn"); await sleep(400);
   await shot("03-drawer-390");
+  await audit("drawer 390", true);
   const drawerOpen = await evaluate(`document.querySelector("#app").classList.contains("side-open")`);
   await click("#sideClose"); await sleep(400);
   const closedByButton = !(await evaluate(`document.querySelector("#app").classList.contains("side-open")`));
@@ -271,6 +343,7 @@ try {
     for (const [w, h, mobile] of [[1440, 900], [820, 1000], [390, 844, true]]) {
       await viewport(w, h, mobile);
       await shot(`05-loupe-${n.replace(/\.\w+$/, "")}-${w}`);
+      await audit(`loupe ${w}`, !!mobile);
       const o = await overflowReport("#lbPanel");
       o.length ? fail(`loupe panel overflows at ${w}px: ${o.join("; ")}`) : ok(`loupe panel fits at ${w}px`);
       // controls blown out of shape by a stray rule (a 98 px tall "no label" dot, once)
@@ -295,6 +368,7 @@ try {
     for (const [w, h, mobile] of [[1440, 900], [390, 844, true]]) {
       await viewport(w, h, mobile); await sleep(500);
       await shot(`11-cull-${w}`);
+      await audit(`cull ${w}`, !!mobile);
       const o = await overflowReport("#cull");
       o.length ? fail(`culling mode overflows at ${w}px: ${o.join("; ")}`) : ok(`culling mode fits at ${w}px`);
     }
@@ -314,6 +388,7 @@ try {
   await click("#calibBtn"); await sleep(600);
   if (await evaluate(`!document.querySelector("#calib").hidden`)) {
     await shot("13-calibration");
+    await audit("calibration");
     const n = await evaluate(`(async () => { let n = 0; while (document.querySelector("#calibBody [data-y]") && n < 20) {
       const s = document.querySelector("#calibBody .cal-foot .num").textContent; document.querySelector(n % 3 ? "#calibBody [data-y='1']" : "#calibBody [data-y='0']").click(); n++; await new Promise((r) => setTimeout(r, 60)); } return n; })()`);
     await shot("14-calibration-result");
@@ -326,6 +401,7 @@ try {
   /* ---------- finish ---------- */
   await click("#finishBtn"); await sleep(600);
   await shot("15-finish");
+  await audit("finish");
   const fo = await overflowReport("#finish .modal-card");
   fo.length ? fail(`finish dialog overflows: ${fo.join("; ")}`) : ok("finish dialog fits");
   await viewport(390, 844, true); await sleep(300); await shot("15-finish-390"); await viewport(1440, 900);
@@ -379,6 +455,7 @@ try {
 
 if (problems.length) for (const p of [...new Set(problems)]) fail(p);
 else ok("no page errors");
+printAudit();
 console.log(`screenshots: ${SHOTS}`);
 if (flag("verbose")) console.log(logs.join("\n"));
 cleanup();

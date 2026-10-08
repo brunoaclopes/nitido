@@ -11,28 +11,47 @@ const BAD = new Set(["blur", "motion", "missed", "eyes"]);
 export const LABEL_COLORS = { Red: "--lbl-red", Yellow: "--lbl-yellow", Green: "--lbl-green", Blue: "--lbl-blue", Purple: "--lbl-purple" };
 
 /* ---------- toolbar ---------- */
+/** Updates a select's options in place, so an open list is not closed by the live updates during analysis. */
+function setOptions(sel, opts, value) {
+  const cur = [...sel.querySelectorAll("option")];
+  if (cur.length !== opts.length || cur.some((o, i) => o.value !== opts[i][0])) {
+    sel.textContent = "";
+    for (const [v, label] of opts) sel.appendChild(el("option", { value: v }, esc(label)));
+  } else cur.forEach((o, i) => { if (o.textContent !== opts[i][1]) o.textContent = opts[i][1]; });
+  if (sel.value !== value) sel.value = value;
+}
+
 export function renderToolbar() {
   const items = SESSION.items.filter((i) => i.ready && !i.error && i.ev);
   const n = { all: items.length, keep: 0, review: 0, reject: 0 };
   for (const it of items) n[it.verdict]++;
   const tabs = [["all", null], ["keep", "--good"], ["review", "--doubt"], ["reject", "--bad"]];
-  $("#verdictTabs").innerHTML = tabs.map(([k, c]) =>
-    `<button class="tab" role="tab" data-v="${k}" aria-selected="${UI.filter.verdict === k}">${c ? `<i style="--c:var(${c})"></i>` : ""}${t("verdict.tab." + k)} <span class="n">${n[k]}</span></button>`).join("");
+  const vt = $("#verdictTabs");
+  // the tabs are built once per language and then only updated, so a click is never lost to a rebuild
+  if (vt.dataset.lang !== S.lang || vt.children.length !== tabs.length) {
+    vt.dataset.lang = S.lang;
+    vt.innerHTML = tabs.map(([k, c]) =>
+      `<button class="tab" role="tab" data-v="${k}">${c ? `<i style="--c:var(${c})"></i>` : ""}${t("verdict.tab." + k)} <span class="n"></span></button>`).join("");
+  }
+  for (const b of vt.children) {
+    const k = /** @type {HTMLElement} */ (b).dataset.v;
+    b.setAttribute("aria-selected", String(UI.filter.verdict === k));
+    const c = b.querySelector(".n"), v = String(n[k]);
+    if (c.textContent !== v) c.textContent = v;
+  }
   const rc = Object.fromEntries(REASONS.map((r) => [r, 0]));
   for (const it of items) for (const r of it.ev.reasons) if (r in rc) rc[r]++;
-  const rs = $("#reasonSel");
-  rs.innerHTML = `<option value="all">${t("tb.allReasons")}</option>` + REASONS.filter((r) => rc[r]).map((r) => `<option value="${r}">${t("reason." + r)} (${rc[r]})</option>`).join("");
-  if (UI.filter.reason !== "all" && !rc[UI.filter.reason]) UI.filter.reason = "all";
-  /** @type {HTMLSelectElement} */ (rs).value = UI.filter.reason;
+  // a chosen reason stays in the list while it has no photos (e.g. early in the analysis)
+  if (UI.filter.reason !== "all" && !(UI.filter.reason in rc)) UI.filter.reason = "all";
+  setOptions($("#reasonSel"), [["all", t("tb.allReasons")], ...REASONS.filter((r) => rc[r] || r === UI.filter.reason).map((r) => [r, `${t("reason." + r)} (${rc[r]})`])], UI.filter.reason);
   const extras = ["all", "best", "faces", "bokeh", "changed", "manual", "starred", "noraf"];
   // one filter per film simulation, when the shoot used more than one
   const films = new Map();
   for (const it of items) { const f = recipeOf(it)?.film; if (f) films.set(f, (films.get(f) || 0) + 1); }
-  const xs = $("#extraSel");
-  xs.innerHTML = extras.map((k) => `<option value="${k}">${t("extra." + k)}</option>`).join("") +
-    (films.size > 1 ? [...films].sort((a, b) => b[1] - a[1]).map(([f, n]) => `<option value="film:${esc(f)}">${esc(t("extra.film", { name: f }))} (${n})</option>`).join("") : "");
-  if (UI.filter.extra.startsWith("film:") && !films.has(UI.filter.extra.slice(5))) UI.filter.extra = "all";
-  /** @type {HTMLSelectElement} */ (xs).value = UI.filter.extra;
+  const chosen = UI.filter.extra.startsWith("film:") ? UI.filter.extra.slice(5) : null;
+  if (chosen && !films.has(chosen)) films.set(chosen, 0);
+  setOptions($("#extraSel"), [...extras.map((k) => [k, t("extra." + k)]),
+    ...(films.size > 1 || chosen ? [...films].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([f, c]) => ["film:" + f, `${t("extra.film", { name: f })} (${c})`]) : [])], UI.filter.extra);
 }
 
 /* ---------- visibility ---------- */
@@ -61,7 +80,7 @@ export function isVisible(it) {
 function makeCard(it) {
   const c = el("article", { class: "card", tabindex: "0", "data-v": "pending" });
   c.innerHTML = `<div class="frame"><div class="pic" style="--ar:1.5"><img alt="" decoding="async" loading="lazy"><div class="ov"></div></div>
-    <div class="badges"></div><i class="lbl" hidden></i><span class="stars"></span><button class="tick" tabindex="-1" aria-hidden="true"></button></div>
+    <div class="badges"></div><i class="lbl" hidden></i><span class="stars"></span><button class="tick" tabindex="-1" aria-label="${esc(t("card.select"))}"></button></div>
     <div class="row"><span class="name"></span><span class="score num"></span></div>
     <div class="row sub"><span class="chip"></span><span class="why"></span></div>`;
   c.querySelector(".name").textContent = it.name.replace(/\.[^.]+$/, "");
@@ -174,7 +193,13 @@ export function layout() {
   const inner = sortFns[$("#sortSel") ? /** @type {HTMLSelectElement} */ ($("#sortSel")).value : "score"] || sortFns.score;
   const frag = document.createDocumentFragment();
   const pending = items.filter((i) => !i.ready || i.error || !i.ev);
-  if (S.groupMode === "none" || !SESSION.groups.length) {
+  const grouped = S.groupMode !== "none" && SESSION.groups.length > 0;
+  if (grouped) {
+    // photos analysed after the groups were built (during analysis) are not in any group yet
+    const placed = new Set(SESSION.groups.flatMap((g) => g.members));
+    pending.unshift(...items.filter((i) => i.ready && !i.error && i.ev && !placed.has(i)).sort(inner));
+  }
+  if (!grouped) {
     const wrap = el("div", { class: "cards" });
     items.filter((i) => i.ready && !i.error && i.ev).sort(inner).concat(pending).forEach((it) => wrap.appendChild(updateCard(it)));
     frag.appendChild(wrap);
@@ -227,10 +252,11 @@ export function layout() {
 
 /** Appends a newly analysed photo without rebuilding everything (during analysis). */
 export function appendLive(it) {
-  if (it.card?.isConnected) { updateCard(it); return; }
+  if (it.card?.isConnected) { updateCard(it); it.card.hidden = !isVisible(it); return; }
   let wrap = gallery().querySelector(".live");
   if (!wrap) { wrap = el("div", { class: "cards live" }); gallery().appendChild(wrap); }
   wrap.appendChild(updateCard(it));
+  it.card.hidden = !isVisible(it);
 }
 
 /** Updates cards, section headers and visibility after a recompute or filter change. */

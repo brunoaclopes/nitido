@@ -1,5 +1,5 @@
 // Regenerates the README screenshots in docs/ from a folder of real photos, in headless Chrome.
-//   node scripts/readme-shots.mjs --photos ~/Pictures/shoot --names DSCF0001,DSCF0002,… [--title "Capri · Sept 2026"]
+//   node scripts/readme-shots.mjs --photos ~/Pictures/shoot --names DSCF0001,DSCF0002,… [--title "Capri · Sept 2026"] [--tier standard]
 // Pick photos without people. Needs Node ≥ 22 and Chrome.
 import { spawn } from "node:child_process";
 import { mkdtempSync, mkdirSync, readdirSync, existsSync, writeFileSync, rmSync } from "node:fs";
@@ -52,7 +52,7 @@ try {
   await size(1440, 900);
   await page("Page.navigate", { url: `http://127.0.0.1:${port}/` });
   await until(`document.readyState === "complete" && !!document.querySelector("#picker")`, 20000);
-  await js(`localStorage.setItem("nitido-v3", JSON.stringify({ lang: "en" })), location.reload(), true`).catch(() => {});
+  await js(`localStorage.setItem("nitido-v3", JSON.stringify({ lang: "en", tier: ${JSON.stringify(opt("tier", "standard"))} })), location.reload(), true`).catch(() => {});
   await until(`document.readyState === "complete" && !!document.querySelector("#picker")`, 20000);
   await js(`document.querySelector("#picker").removeAttribute("webkitdirectory"), true`);
   const { result: input } = await page("Runtime.evaluate", { expression: `document.querySelector("#picker")` });

@@ -222,8 +222,17 @@ function fixBaseline(show = true) {
 
 /* ================================================================ events from views */
 on("manual", ({ items, patch }) => {
+  // bulk decisions can be undone from the toast
+  const before = items.length > 1 ? items.map((it) => [it, SESSION.data.manual[it.path] ? { ...SESSION.data.manual[it.path] } : null]) : null;
   setManual(items, patch);
   recompute();
+  if (before && "flag" in patch) {
+    const what = patch.flag === "reject" ? "undo.rejected" : patch.flag === "pick" ? "undo.kept" : "undo.auto";
+    toast(t(what, { n: items.length }), 7000, { label: t("undo.label"), run: () => {
+      for (const [it, m] of before) { if (m) SESSION.data.manual[it.path] = m; else delete SESSION.data.manual[it.path]; }
+      touchSession(); recompute(); record(items); renderAll(); toast(t("undo.restored", { n: items.length }));
+    } });
+  }
   if (record(items) && maybeAutoEnable()) { syncSide(); recompute(); toast(t("ai.tasteOn", { acc: Math.round(taste.model.acc * 100), n: taste.model.n }), 9000); }
   renderAll();
 });
