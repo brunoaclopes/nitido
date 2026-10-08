@@ -1,0 +1,11 @@
+{
+  "name": "Nítido",
+  "short_name": "Nítido",
+  "description": "Photo culling in the browser, tuned for Fujifilm.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#1b1b1c",
+  "theme_color": "#1b1b1c",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}

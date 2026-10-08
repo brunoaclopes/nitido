@@ -1,0 +1,12 @@
+{
+  "compilerOptions": {
+    "target": "es2022",
+    "module": "es2022",
+    "moduleResolution": "bundler",
+    "checkJs": false,
+    "lib": ["es2022", "dom", "dom.iterable", "webworker"],
+    "strict": false,
+    "noEmit": true
+  },
+  "include": ["src", "tests", "server.mjs", "scripts"]
+}

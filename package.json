@@ -1,0 +1,19 @@
+{
+  "name": "nitido",
+  "version": "1.0.0",
+  "description": "Photo culling in the browser: focus on eyes, AF point and subject, closed eyes, similar-shot groups and XMP export. Tuned for Fujifilm.",
+  "type": "module",
+  "private": true,
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node server.mjs --open",
+    "serve": "node server.mjs",
+    "models": "node scripts/fetch-models.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "test:smoke": "node tests/smoke.dom.mjs",
+    "test:browser": "node tests/browser.e2e.mjs"
+  }
+}

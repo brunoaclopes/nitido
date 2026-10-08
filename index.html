@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#1a1a1b">
+<title>Nítido</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 22 22'%3E%3Cpath d='M1 7V1h6M15 1h6v6M21 15v6h-6M7 21H1v-6' fill='none' stroke='%23ececec' stroke-width='2'/%3E%3Ccircle cx='11' cy='11' r='2.5' fill='none' stroke='%235fd394' stroke-width='2'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon.svg">
+<link rel="stylesheet" href="styles/app.css">
+</head>
+<body>
+<div class="app" id="app" data-state="empty">
+  <header class="top">
+    <button class="icon-btn menu-btn" id="menuBtn" data-i18n-attr="aria-label:top.panel" aria-controls="side" aria-expanded="false">
+      <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M2 4h14M2 9h14M2 14h14" stroke="currentColor" stroke-width="1.6"/></svg>
+    </button>
+    <div class="brand">
+      <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 7V1h6M15 1h6v6M21 15v6h-6M7 21H1v-6"/><circle cx="11" cy="11" r="2.5" style="stroke:var(--good)"/></svg>
+      <span>Nítido</span>
+    </div>
+    <div class="session" id="session" hidden><b id="sessName"></b><span id="sessInfo"></span></div>
+    <div class="progress" id="progress" hidden>
+      <div class="bar"><i id="barFill"></i></div>
+      <span class="num" id="progText"></span>
+      <button class="btn quiet small" id="stopBtn" data-i18n="top.stop"></button>
+    </div>
+    <div class="spacer"></div>
+    <label class="search" id="searchWrap" hidden>
+      <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><circle cx="6" cy="6" r="4.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M9.5 9.5L13 13" stroke="currentColor" stroke-width="1.5"/></svg>
+      <input type="search" id="search" data-i18n-attr="placeholder:top.search;aria-label:top.search">
+    </label>
+    <div class="seg lang" role="group" aria-label="Language">
+      <button data-lang="pt">PT</button><button data-lang="en">EN</button>
+    </div>
+    <button class="btn" id="cullBtn" hidden data-i18n-attr="title:top.cullHint"><span data-i18n="top.cull"></span> <kbd>T</kbd></button>
+    <button class="btn primary" id="finishBtn" hidden data-i18n-attr="title:top.finishHint" data-i18n="top.finish"></button>
+    <div class="menu-wrap" id="exportWrap" hidden>
+      <button class="btn" id="exportBtn" aria-haspopup="menu" aria-expanded="false"><span data-i18n="top.export"></span>
+        <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5l3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></button>
+      <div class="menu" id="exportMenu" role="menu" hidden>
+        <button role="menuitem" data-export="xmp"><b data-i18n="export.xmp"></b><span id="xmpHint"></span></button>
+        <button role="menuitem" data-export="csv"><b data-i18n="export.csv"></b><span data-i18n="export.csvHint"></span></button>
+        <button role="menuitem" data-export="json"><b data-i18n="export.json"></b><span data-i18n="export.jsonHint"></span></button>
+        <button role="menuitem" data-export="scripts"><b data-i18n="export.scripts"></b><span data-i18n="export.scriptsHint"></span></button>
+      </div>
+    </div>
+    <button class="btn quiet" id="openBtn" hidden data-i18n="top.open"></button>
+  </header>
+
+  <!-- empty -->
+  <section class="empty">
+    <div class="drop brackets" id="drop">
+      <div>
+        <div class="dot"></div>
+        <h1 data-i18n="empty.title"></h1>
+        <p data-i18n="empty.lead"></p>
+        <button class="btn primary" id="pickBtn" data-i18n="empty.pick"></button>
+        <ul class="features">
+          <li data-i18n="empty.f1"></li><li data-i18n="empty.f2"></li><li data-i18n="empty.f3"></li><li data-i18n="empty.f4"></li>
+        </ul>
+        <p class="fine" data-i18n="empty.fine"></p>
+      </div>
+    </div>
+    <input type="file" id="picker" webkitdirectory directory multiple hidden>
+  </section>
+
+  <!-- loading -->
+  <section class="loader" aria-live="polite">
+    <div class="inner">
+      <div class="af brackets"><span></span></div>
+      <h2 id="ldTitle"></h2>
+      <p class="ldtext num" id="ldText"></p>
+      <div class="ldbar indet" id="ldBar"><i id="ldFill"></i></div>
+      <ol class="phases" id="phases">
+        <li data-p="read" data-i18n="load.read"></li><li data-p="prep" data-i18n="load.prep"></li><li data-p="analyse" data-i18n="load.analyse"></li>
+      </ol>
+      <p class="elapsed num" id="ldElapsed"></p>
+      <p class="models num" id="ldModels"></p>
+    </div>
+  </section>
+
+  <!-- side panel -->
+  <div class="backdrop" id="backdrop" hidden></div>
+  <aside class="side" id="side">
+    <details class="group" open>
+      <summary data-i18n="side.overview"></summary>
+      <div class="stats" id="stats"></div>
+      <canvas class="hist" id="hist" data-i18n-attr="aria-label:side.histAria"></canvas>
+      <p class="hint" data-i18n="side.histHint"></p>
+      <div class="calib-row"><span class="hint" id="calibInfo"></span><button class="btn small" id="calibBtn" data-i18n="cal.open"></button></div>
+      <div class="field col">
+        <span class="label" data-i18n="side.strictness"></span>
+        <div class="seg wide" id="strictSeg" role="group">
+          <button data-v="relaxed" data-i18n="strict.relaxed"></button><button data-v="normal" data-i18n="strict.normal"></button>
+          <button data-v="strict" data-i18n="strict.strict"></button><button data-v="custom" data-i18n="strict.custom"></button>
+        </div>
+      </div>
+    </details>
+
+    <details class="group" open>
+      <summary data-i18n="side.focus"></summary>
+      <div class="field"><label for="f-sharpPx" data-i18n="f.sharpPx"></label><output id="o-sharpPx" class="num"></output>
+        <input type="range" id="f-sharpPx" min="0.8" max="5" step="0.1"><p class="hint" data-i18n="f.sharpPxHint"></p></div>
+      <div class="field"><label for="f-missRatio" data-i18n="f.missRatio"></label><output id="o-missRatio" class="num"></output>
+        <input type="range" id="f-missRatio" min="1.2" max="4" step="0.1"><p class="hint" data-i18n="f.missRatioHint"></p></div>
+      <div class="field"><label for="f-softerRatio" data-i18n="f.softerRatio"></label><output id="o-softerRatio" class="num"></output>
+        <input type="range" id="f-softerRatio" min="1.1" max="3" step="0.05"><p class="hint" data-i18n="f.softerRatioHint"></p></div>
+      <div class="field"><label for="f-motionAniso" data-i18n="f.motion"></label><output id="o-motionAniso" class="num"></output>
+        <input type="range" id="f-motionAniso" min="1.3" max="3" step="0.05"><p class="hint" data-i18n="f.motionHint"></p></div>
+      <div class="field"><label for="f-bokehPct" data-i18n="f.bokeh"></label><output id="o-bokehPct" class="num"></output>
+        <input type="range" id="f-bokehPct" min="20" max="90" step="5"><p class="hint" data-i18n="f.bokehHint"></p></div>
+    </details>
+
+    <details class="group" open>
+      <summary data-i18n="side.people"></summary>
+      <div class="field"><label for="f-blinkThr" data-i18n="f.blink"></label><output id="o-blinkThr" class="num"></output>
+        <input type="range" id="f-blinkThr" min="0.25" max="0.85" step="0.05"><p class="hint" data-i18n="f.blinkHint"></p></div>
+      <div class="field col"><span class="label" data-i18n="f.eyesRule"></span>
+        <div class="seg wide" id="eyesSeg" role="group"><button data-v="key" data-i18n="f.eyesKey"></button><button data-v="all" data-i18n="f.eyesAll"></button></div></div>
+      <label class="check"><input type="checkbox" id="f-rejectEyes"> <span data-i18n="f.rejectEyes"></span></label>
+      <label class="check"><input type="checkbox" id="f-exposureCheck"> <span data-i18n="f.exposure"></span></label>
+    </details>
+
+    <details class="group" open>
+      <summary data-i18n="side.groups"></summary>
+      <div class="field col"><label for="f-groupMode" data-i18n="g.mode"></label>
+        <select class="select" id="f-groupMode">
+          <option value="similar" data-i18n="g.similar"></option><option value="burst" data-i18n="g.burst"></option>
+          <option value="scene" data-i18n="g.scene"></option><option value="none" data-i18n="g.none"></option>
+        </select></div>
+      <div class="field" data-for="similar"><label for="f-groupSim" data-i18n="g.sim"></label><output id="o-groupSim" class="num"></output>
+        <input type="range" id="f-groupSim" min="0.35" max="0.9" step="0.01"><p class="hint" data-i18n="g.simHint"></p></div>
+      <div class="field col" data-for="similar scene"><label for="f-sceneGapMin" data-i18n="g.sceneGap"></label>
+        <select class="select" id="f-sceneGapMin"><option value="2">2 min</option><option value="5">5 min</option><option value="10">10 min</option><option value="30">30 min</option><option value="120">2 h</option></select></div>
+      <div class="field" data-for="burst"><label for="f-burstGap" data-i18n="g.burstGap"></label><output id="o-burstGap" class="num"></output>
+        <input type="range" id="f-burstGap" min="0.2" max="5" step="0.1"></div>
+      <div class="field col"><label for="f-groupSort" data-i18n="g.sort"></label>
+        <select class="select" id="f-groupSort">
+          <option value="time" data-i18n="g.sortTime"></option><option value="timeDesc" data-i18n="g.sortTimeDesc"></option>
+          <option value="size" data-i18n="g.sortSize"></option><option value="score" data-i18n="g.sortScore"></option><option value="name" data-i18n="g.sortName"></option>
+        </select></div>
+      <div class="row-btns"><button class="btn small" id="collapseAll" data-i18n="g.collapseAll"></button><button class="btn small quiet" id="expandAll" data-i18n="g.expandAll"></button></div>
+    </details>
+
+    <details class="group">
+      <summary data-i18n="side.ai"></summary>
+      <div class="ai" id="aiStatus"></div>
+      <label class="check"><input type="checkbox" id="ai-faces"> <span data-i18n="ai.faces"></span></label>
+      <label class="check"><input type="checkbox" id="ai-objects"> <span data-i18n="ai.objects"></span></label>
+      <label class="check"><input type="checkbox" id="ai-clip"> <span data-i18n="ai.clip"></span></label>
+      <p class="hint" data-i18n="ai.hint"></p>
+      <h3 class="sub" data-i18n="ai.personal"></h3>
+      <p class="hint" id="personalInfo"></p>
+      <label class="check"><input type="checkbox" id="f-usePersonal"> <span data-i18n="ai.usePersonal"></span></label>
+      <div class="row-btns"><button class="btn small quiet" id="forgetBtn" data-i18n="ai.forget"></button></div>
+    </details>
+
+    <details class="group">
+      <summary data-i18n="side.export"></summary>
+      <div class="field col"><span class="label" data-i18n="x.reject"></span>
+        <div class="seg wide" id="xmpRejectSeg"><button data-v="one" data-i18n="x.rejectOne"></button><button data-v="minus" data-i18n="x.rejectMinus"></button></div></div>
+      <label class="check"><input type="checkbox" id="f-keywords"> <span data-i18n="x.keywords"></span></label>
+    </details>
+
+    <details class="group" open>
+      <summary data-i18n="side.compare"></summary>
+      <p class="hint" id="baselineText"></p>
+      <div class="row-btns"><button class="btn small" id="baseBtn" data-i18n="cmp.fix"></button><button class="btn small quiet" id="resetBtn" data-i18n="cmp.reset"></button></div>
+    </details>
+  </aside>
+
+  <!-- gallery -->
+  <main class="main" id="main">
+    <div class="toolbar">
+      <div class="tabs" id="verdictTabs" role="tablist"></div>
+      <div class="tools">
+        <select class="select" id="reasonSel" data-i18n-attr="aria-label:tb.reason"></select>
+        <select class="select" id="extraSel" data-i18n-attr="aria-label:tb.extra"></select>
+        <select class="select" id="sortSel" data-i18n-attr="aria-label:tb.sort">
+          <option value="score" data-i18n="sort.score"></option><option value="time" data-i18n="sort.time"></option>
+          <option value="blur" data-i18n="sort.blur"></option><option value="name" data-i18n="sort.name"></option>
+        </select>
+        <label class="check inline"><input type="checkbox" id="f-onlyBest"> <span data-i18n="tb.onlyBest"></span></label>
+        <input type="range" class="density" id="density" min="140" max="420" step="10" data-i18n-attr="aria-label:tb.density">
+        <button class="icon-btn" id="helpBtn" data-i18n-attr="aria-label:help.title;title:help.title">?</button>
+      </div>
+    </div>
+    <div class="selbar" id="selbar" hidden>
+      <span class="num" id="selCount"></span>
+      <button class="btn small" data-act="pick" data-i18n="act.keep"></button>
+      <button class="btn small" data-act="reject" data-i18n="act.reject"></button>
+      <button class="btn small quiet" data-act="auto" data-i18n="act.auto"></button>
+      <button class="btn small" data-act="compare" data-i18n="act.compare"></button>
+      <button class="btn small" data-act="group" data-i18n="act.makeGroup"></button>
+      <button class="btn small quiet" data-act="clear" data-i18n="act.clearSel"></button>
+    </div>
+    <div class="scroller" id="scroller"><div id="gallery" class="gallery"></div></div>
+  </main>
+</div>
+
+<!-- loupe -->
+<div class="lb" id="lb" hidden role="dialog" aria-modal="true" aria-labelledby="lbName">
+  <div class="stage" id="stage">
+    <div class="lbpic" id="lbPic"><img id="lbImg" alt=""><div class="map" id="lbMap"></div><div class="boxes" id="lbBoxes"></div><div class="facesov" id="lbFaces"></div></div>
+    <button class="nav-btn prev" id="lbPrev" data-i18n-attr="aria-label:lb.prev">‹</button>
+    <button class="nav-btn next" id="lbNext" data-i18n-attr="aria-label:lb.next">›</button>
+  </div>
+  <aside class="panel" id="lbPanel">
+    <div class="panel-head"><h2 id="lbName"></h2><span class="num pos" id="lbPos"></span><button class="btn quiet small" id="lbClose" data-i18n="lb.close"></button></div>
+    <div class="verdict" id="verdict">
+      <div class="big" id="lbVerdict"></div>
+      <p class="why" id="lbWhy"></p>
+      <div class="tags" id="lbTags"></div>
+      <div class="seg wide" id="flagSeg" role="group">
+        <button data-flag="pick" data-i18n="act.keep"></button><button data-flag="reject" data-i18n="act.reject"></button><button data-flag="" data-i18n="act.auto"></button>
+      </div>
+      <div class="rate">
+        <div class="stars-in" id="starsIn" role="group" data-i18n-attr="aria-label:lb.stars"></div>
+        <div class="labels-in" id="labelsIn" role="group" data-i18n-attr="aria-label:lb.labels"></div>
+      </div>
+    </div>
+    <div class="views">
+      <button class="btn small" id="vBoxes" aria-pressed="true" data-i18n="lb.focusOv"></button>
+      <button class="btn small" id="vFaces" aria-pressed="true" data-i18n="lb.facesOv"></button>
+      <button class="btn small" id="vMap" aria-pressed="false" data-i18n="lb.mapOv"></button>
+      <button class="btn small" id="vZoom" data-i18n="lb.zoom"></button>
+    </div>
+    <section class="faces-strip" id="facesStrip"></section>
+    <figure class="loupe"><img id="lbLoupe" alt=""><figcaption id="lbLoupeCap"></figcaption></figure>
+    <section class="breakdown" id="breakdown"></section>
+    <section class="groupbox" id="groupBox"></section>
+    <dl class="facts" id="facts"></dl>
+  </aside>
+</div>
+
+<!-- compare -->
+<div class="cmp" id="cmp" hidden role="dialog" aria-modal="true">
+  <div class="cmp-head"><b data-i18n="cmp.title"></b><span class="hint" data-i18n="cmp.hint"></span><span class="spacer"></span><button class="btn quiet small" id="cmpClose" data-i18n="lb.close"></button></div>
+  <div class="cmp-grid" id="cmpGrid"></div>
+</div>
+
+<!-- culling mode -->
+<div class="cull" id="cull" hidden role="dialog" aria-modal="true" aria-labelledby="cullName">
+  <header class="cull-head">
+    <b id="cullName"></b><span class="num pos" id="cullPos"></span>
+    <div class="bar cull-bar"><i id="cullBar"></i></div><span class="num pos" id="cullDone"></span>
+    <button class="btn quiet small" id="cullClose" data-i18n="lb.close"></button>
+  </header>
+  <div class="cull-stage" id="cullStage"><div class="lbpic" id="cullPic"><img id="cullImg" alt=""><div class="boxes" id="cullBoxes"></div></div></div>
+  <div class="cull-info" id="cullInfo"></div>
+  <div class="cull-faces" id="cullFaces" hidden></div>
+  <div class="cull-strip" id="cullStrip"></div>
+  <footer class="cull-actions" id="cullActions">
+    <button class="btn quiet small" data-a="prev"><kbd>↑</kbd> <span data-i18n="cull.prev"></span></button>
+    <span class="spacer"></span>
+    <button class="btn" data-a="reject"><kbd>X</kbd> <span data-i18n="act.reject"></span></button>
+    <button class="btn" data-a="keep"><kbd>P</kbd> <span data-i18n="act.keep"></span></button>
+    <button class="btn primary" data-a="keepThis"><kbd>Enter</kbd> <span data-i18n="cull.keepThis"></span></button>
+    <span class="spacer"></span>
+    <button class="btn quiet small" data-a="next"><span data-i18n="cull.next"></span> <kbd>↓</kbd></button>
+  </footer>
+</div>
+
+<!-- calibration -->
+<div class="modal" id="calib" hidden role="dialog" aria-modal="true" aria-labelledby="calibTitle">
+  <div class="modal-card">
+    <div class="panel-head"><h2 id="calibTitle" data-i18n="cal.title"></h2><button class="btn quiet small" data-a="close" data-i18n="lb.close"></button></div>
+    <div id="calibBody"></div>
+  </div>
+</div>
+
+<!-- finish: sort the session on disk -->
+<div class="modal" id="finish" hidden role="dialog" aria-modal="true" aria-labelledby="finishTitle">
+  <div class="modal-card wide">
+    <div class="panel-head"><h2 id="finishTitle" data-i18n="fin.title"></h2><button class="btn quiet small" data-a="close" data-i18n="lb.close"></button></div>
+    <p class="hint" data-i18n="fin.lead"></p>
+    <div id="finishBody"></div>
+  </div>
+</div>
+
+<!-- help -->
+<div class="help" id="help" hidden role="dialog" aria-modal="true">
+  <div class="help-card">
+    <div class="panel-head"><h2 data-i18n="help.title"></h2><button class="btn quiet small" id="helpClose" data-i18n="lb.close"></button></div>
+    <div class="help-body" data-i18n-html="help.body"></div>
+  </div>
+</div>
+
+<div class="veil brackets" id="veil" hidden><span data-i18n="drop.veil"></span></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<noscript>JavaScript is required.</noscript>
+<script type="module" src="src/main.js"></script>
+</body>
+</html>
