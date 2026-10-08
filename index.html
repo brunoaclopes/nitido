@@ -65,7 +65,7 @@
         <ul class="features">
           <li data-i18n="empty.f1"></li><li data-i18n="empty.f2"></li><li data-i18n="empty.f3"></li><li data-i18n="empty.f4"></li>
         </ul>
-        <p class="fine" data-i18n="empty.fine"></p>
+        <p class="fine" id="emptyFine"></p>
       </div>
     </div>
     <input type="file" id="picker" webkitdirectory directory multiple hidden>
@@ -150,8 +150,14 @@
       <div class="row-btns"><button class="btn small" id="collapseAll" data-i18n="g.collapseAll"></button><button class="btn small quiet" id="expandAll" data-i18n="g.expandAll"></button></div>
     </details>
 
-    <details class="group">
+    <details class="group" open>
       <summary data-i18n="side.ai"></summary>
+      <div class="field col"><span class="label" data-i18n="tier.title"></span>
+        <div class="seg wide tier-seg" id="tierSeg" role="group">
+          <button data-v="light" data-i18n="tier.light"></button><button data-v="standard" data-i18n="tier.standard"></button>
+          <button data-v="heavy" data-i18n="tier.heavy"></button><button data-v="max" data-i18n="tier.max"></button>
+        </div>
+        <p class="hint" id="tierInfo"></p><p class="hint tier-suggest" id="tierSuggest"></p></div>
       <div class="ai" id="aiStatus"></div>
       <label class="check"><input type="checkbox" id="ai-faces"> <span data-i18n="ai.faces"></span></label>
       <label class="check"><input type="checkbox" id="ai-objects"> <span data-i18n="ai.objects"></span></label>
@@ -238,6 +244,7 @@
     <figure class="loupe"><img id="lbLoupe" alt=""><figcaption id="lbLoupeCap"></figcaption></figure>
     <section class="breakdown" id="breakdown"></section>
     <section class="groupbox" id="groupBox"></section>
+    <section class="recipe" id="lbRecipe"></section>
     <dl class="facts" id="facts"></dl>
   </aside>
 </div>

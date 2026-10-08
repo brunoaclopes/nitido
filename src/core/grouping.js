@@ -11,12 +11,16 @@ export const GROUP_DEFAULTS = { groupMode: "similar", groupSim: 0.62, sceneGapMi
 
 const dot = (a, b) => { let s = 0; for (let i = 0; i < a.length; i++) s += a[i] * b[i]; return s; };
 
+/** Image–image cosine of the current model at "different scenes" and at "same burst" (models differ). */
+let SIM = [0.72, 0.98];
+export const setEmbeddingScale = (range) => { SIM = range || [0.72, 0.98]; };
+
 export function similarity(a, b) {
   const ps = perceptualSim(a.desc, b.desc);
   const dt = a.time != null && b.time != null ? Math.abs(a.time - b.time) / 1000 : 600;
   const ts = Math.exp(-dt / 90);
   let s;
-  if (a.emb && b.emb) s = 0.55 * clamp((dot(a.emb, b.emb) - 0.72) / 0.26, 0, 1) + 0.25 * ps + 0.2 * ts;
+  if (a.emb && b.emb) s = 0.55 * clamp((dot(a.emb, b.emb) - SIM[0]) / (SIM[1] - SIM[0]), 0, 1) + 0.25 * ps + 0.2 * ts;
   else s = 0.75 * ps + 0.25 * ts;
   if (a.desc && b.desc && a.desc.portrait !== b.desc.portrait) s *= 0.75;
   return s;

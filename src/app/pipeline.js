@@ -8,6 +8,7 @@ import { getCache, putCache, cacheKey } from "./store.js";
 import { S, SESSION } from "./state.js";
 import { initVision, detectFaces, detectObjects } from "../ml/vision.js";
 import { initClip, analyseClip, clipStatus } from "../ml/clip.js";
+import { tierOf } from "../ml/tiers.js";
 
 const MEM = /** @type {any} */ (navigator).deviceMemory || 4, HC = navigator.hardwareConcurrency || 4;
 const POOL = Math.max(1, Math.min(MEM >= 8 ? 2 : 1, Math.floor(HC / 2)));
@@ -111,7 +112,7 @@ const CACHED = ["meta", "time", "W", "H", "exposure", "desc", "faces", "objects"
 const snapshot = (it) => Object.fromEntries(CACHED.map((k) => [k, it[k] ?? null]));
 
 async function analyse(it, w) {
-  const key = cacheKey(it.path, it.file);
+  const key = cacheKey(it.path, it.file, S.tier);
   const hit = await getCache(key);
   if (hit) { Object.assign(it, hit); return { cached: true, key }; }
   const d = await w.call("decode", { key, file: it.file, isRaf: it.isRaf });
@@ -119,13 +120,13 @@ async function analyse(it, w) {
   const toFull = (x, y) => [x / d.smallScale, y / d.smallScale];
   let faces = [], objects = [];
   try {
-    if (S.ai.faces || S.ai.objects) await initVision(S.ai);
+    if (S.ai.faces || S.ai.objects) await initVision({ ...S.ai, tier: S.tier });
     if (S.ai.faces) faces = detectFaces(d.small, toFull);
     if (S.ai.objects) objects = detectObjects(d.small, toFull);
     // People too small for the face model at 1920 px: look again at full resolution
     if (S.ai.faces) {
       const people = objects.filter((o) => o.label === "person" && o.box[3] - o.box[1] >= 0.1 * d.H
-        && !faces.some((f) => contains(o.box, ...boxCenter(f.box)))).slice(0, 3);
+        && !faces.some((f) => contains(o.box, ...boxCenter(f.box)))).slice(0, tierOf(S.tier).people);
       for (const [i, p] of people.entries()) {
         const region = clampBox(p.box[0], p.box[1], p.box[2], p.box[1] + (p.box[3] - p.box[1]) * 0.45, d.W, d.H);
         if (!region) continue;
@@ -159,7 +160,7 @@ function queueClip(it, key, onUpdate, token) {
   clipChain = clipChain.then(async () => {
     if (token !== RUN.token) return;
     try {
-      const [res] = await analyseClip([{ key, clip: await blobToImageData(it.clipIn), subject: it.subjIn ? await blobToImageData(it.subjIn) : null }]);
+      const [res] = await analyseClip([{ key, clip: await blobToImageData(it.clipIn), subject: it.subjIn ? await blobToImageData(it.subjIn) : null }], S.tier);
       it.emb = res.emb;
       it.clip = { quality: res.quality, sharp: res.sharp, subjectSharp: res.subjectSharp, label: res.label };
       onUpdate(it, "clip");
@@ -179,8 +180,8 @@ export async function run(items, hooks) {
   RUN.running = true;
   hooks.onPhase("prep");
   const workers = await pool();
-  if (S.ai.clip) initClip().catch(() => {});
-  if (S.ai.faces || S.ai.objects) initVision(S.ai).catch(() => {});
+  if (S.ai.clip) initClip(S.tier).catch(() => {});
+  if (S.ai.faces || S.ai.objects) initVision({ ...S.ai, tier: S.tier }).catch(() => {});
   const todo = items.filter((i) => !i.ready);
   let next = 0, done = 0, cached = 0;
   const t0 = performance.now();

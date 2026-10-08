@@ -35,6 +35,8 @@ test("every key used in the markup and code exists", () => {
     "extra.": ["all", "best", "faces", "bokeh", "changed", "manual", "starred", "noraf"],
     "bd.": ["sharp", "eyes", "expression", "exposure", "quality", "noise", "relative"],
     "label.": Object.keys(SCENE_LABELS),
+    "tier.": ["light", "standard", "heavy", "max"], "rec.v.": ["off", "weak", "strong", "small", "large", "auto"],
+    "rec.wb.": ["auto", "autoWhite", "autoAmbience", "daylight", "shade", "fluorescent1", "fluorescent2", "fluorescent3", "incandescent", "flash", "underwater", "custom", "kelvin"], "tier.desc.": ["light", "standard", "heavy", "max"],
   };
   for (const [p, ks] of Object.entries(dyn)) for (const k of ks) used.add(p + k);
   const missing = [...used].filter((k) => !(k in pt) || !(k in en));

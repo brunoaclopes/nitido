@@ -1,7 +1,8 @@
 // @ts-check
 /** Derived data, recomputed whenever settings or decisions change (milliseconds for 1000 photos). */
 import { evaluate, pickBest, finalVerdict } from "../core/scoring.js";
-import { buildGroups, similarity } from "../core/grouping.js";
+import { buildGroups, similarity, setEmbeddingScale } from "../core/grouping.js";
+import { tierOf } from "../ml/tiers.js";
 import { featuresOf, train, predict } from "../core/learn.js";
 import { S, SESSION, touchSession, emit } from "./state.js";
 import { t } from "../i18n/index.js";
@@ -47,6 +48,7 @@ export function coarseRefs(items, windowMs = 20000, minSim = 0.45) {
 export function recompute({ regroup = false } = {}) {
   const items = ready();
   for (const it of SESSION.items) it.manual = manualOf(it);
+  setEmbeddingScale(tierOf(S.tier).clip?.sim);
   if (regroup || !SESSION.groups.length) {
     const { groups, scenes } = buildGroups(items, S, SESSION.data.edits);
     SESSION.groups = groups; SESSION.scenes = scenes;

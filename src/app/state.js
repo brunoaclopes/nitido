@@ -13,7 +13,7 @@ export const DEFAULTS = {
   lang: browserLang,
   ...SCORING, ...GROUP_DEFAULTS,
   groupSort: "time", inGroupSort: "score", density: 220, showBoxes: true, showFaces: true, showMap: false,
-  onlyBest: false, ai: { faces: true, objects: true, clip: true }, usePersonal: false,
+  onlyBest: false, ai: { faces: true, objects: true, clip: true }, tier: null, usePersonal: false,
   xmpReject: "one", keywords: true,
   organize: { ...ORGANIZE_DEFAULTS, destPath: "" },
 };

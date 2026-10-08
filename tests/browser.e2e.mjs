@@ -150,7 +150,7 @@ try {
   await viewport(1440, 900);
   await page("Page.navigate", { url: BASE });
   await until(`document.readyState === "complete" && !!document.querySelector("#picker")`, 20000, "page load");
-  await evaluate(`localStorage.setItem("nitido-v3", JSON.stringify({ lang: "en" })), location.reload(), true`).catch(() => {});
+  await evaluate(`localStorage.setItem("nitido-v3", JSON.stringify({ lang: "en", tier: ${JSON.stringify(opt("tier", "standard"))} })), location.reload(), true`).catch(() => {});
   await until(`document.readyState === "complete" && document.querySelector("[data-lang=en]")?.getAttribute("aria-pressed") === "true"`, 20000, "English UI");
   if (!flag("keep-cache")) await evaluate(`new Promise((r) => { const q = indexedDB.deleteDatabase("nitido"); q.onsuccess = q.onerror = q.onblocked = () => r(true); })`);
   await shot("01-empty-1440");
@@ -167,8 +167,13 @@ try {
   await shot("02-loading");
   await until(`document.querySelector("#app").dataset.state === "session" && document.querySelector("#progress").hidden`, 30 * 60000, "analysis to finish");
   const secs = (Date.now() - t0) / 1000;
+  const tClip0 = Date.now();
   // CLIP finishes in the background after the pixel pass
   await until(`(() => { const s = document.querySelector("#aiStatus")?.textContent || ""; return !/loading|a carregar/i.test(s); })()`, 10 * 60000, "CLIP");
+  // then every photo through it
+  await until(`import(new URL("src/app/state.js", location.href).href).then(({ SESSION }) => { const r = SESSION.items.filter((i) => i.ready && !i.error); return /unavailable|off|indispon|deslig/i.test(document.querySelector("#aiStatus").textContent) || r.every((i) => i.clip); })`, 30 * 60000, "the similarity model on every photo");
+  const cs = await evaluate(`import(new URL("src/ml/clip.js", location.href).href).then(({ clipStatus: c }) => ({ ms: c.ms, n: c.n, state: c.state, error: c.error }))`);
+  console.log(`similarity model: ${cs.state}${cs.error ? " (" + cs.error + ")" : ""}, done ${((Date.now() - tClip0) / 1000).toFixed(0)} s after the pixel pass, ${cs.n ? (cs.ms / cs.n).toFixed(0) + " ms per photo" : "no photo"}`);
   await sleep(2500);
   const sum = await evaluate(`(() => {
     const cards = [...document.querySelectorAll(".card")];
@@ -194,6 +199,8 @@ try {
     const json = await evaluate(`import(new URL("src/app/state.js", location.href).href).then(({ SESSION }) => JSON.stringify(SESSION.items.map((it) => {
       const o = {};
       for (const k of ["path", "name", "raf", "isRaf", "meta", "time", "W", "H", "exposure", "faces", "objects", "af", "sigma", "coarse", "cells", "best", "targets", "clip", "desc"]) o[k] = it[k];
+      if (it.emb) o.emb = Array.from(it.emb, (v) => +v.toFixed(5));
+      o.group = it.group?.id ?? null;
       if (o.desc) o.desc = { ...o.desc, c: Array.from(o.desc.c || []) };
       o.verdict = it.verdict; o.reasons = it.ev?.reasons;
       return o;
@@ -218,6 +225,11 @@ try {
     ? ok(`reanalyse measured ${after.n} photos again and kept the decision (${flagged})`) : fail("reanalyse: " + JSON.stringify({ flagged, ...after }));
   await until(`!/loading/i.test([...document.querySelectorAll("#aiStatus span")].map((s) => s.textContent).join(" "))`, 10 * 60000, "CLIP after reanalyse");
   await sleep(1500);
+
+  // the AI tier selector, with this machine's suggestion
+  await evaluate(`document.querySelector("#tierSeg").scrollIntoView({ block: "center" }), true`); await sleep(300);
+  await shot("03-ai-tier");
+  console.log("  tier: " + await evaluate(`document.querySelector("#tierInfo").textContent + " | " + document.querySelector("#tierSuggest").textContent`));
 
   /* ---------- gallery at several widths ---------- */
   for (const [w, h, mobile] of [[1440, 900], [1100, 800], [820, 1000], [390, 844, true]]) {
@@ -266,6 +278,11 @@ try {
       if (odd.length) fail(`oversized buttons at ${w}px: ${odd.join(", ")}`);
     }
     await viewport(1440, 900);
+    // the film recipe, further down the panel
+    if (await evaluate(`!!document.querySelector("#lbRecipe .recipe-head")`)) {
+      await evaluate(`document.querySelector("#lbRecipe").scrollIntoView({ block: "center" }), true`); await sleep(300);
+      await shot(`05-recipe-${n.replace(/\.\w+$/, "")}`);
+    } else console.log(`  (${n}: no film recipe in the file)`);
     await evaluate(`document.querySelector("#vZoom").click(), true`); await sleep(1500);
     await shot(`06-zoom-${n.replace(/\.\w+$/, "")}`);
     await click("#lbClose"); await sleep(200);

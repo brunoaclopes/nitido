@@ -3,6 +3,7 @@ import { $, el, esc, fmtPx, fmtTime, fmtDate, urlOf, pctBox } from "./dom.js";
 import { t } from "../i18n/index.js";
 import { S, SESSION, UI, touchSession, emit, saveSettings } from "../app/state.js";
 import { cmpNatural } from "../core/util.js";
+import { recipeOf } from "../core/recipe.js";
 
 const gallery = () => $("#gallery");
 export const REASONS = ["blur", "motion", "missed", "eyes", "blink", "softer", "shake", "faceSoft", "over", "under", "nodetail"];
@@ -24,8 +25,13 @@ export function renderToolbar() {
   if (UI.filter.reason !== "all" && !rc[UI.filter.reason]) UI.filter.reason = "all";
   /** @type {HTMLSelectElement} */ (rs).value = UI.filter.reason;
   const extras = ["all", "best", "faces", "bokeh", "changed", "manual", "starred", "noraf"];
+  // one filter per film simulation, when the shoot used more than one
+  const films = new Map();
+  for (const it of items) { const f = recipeOf(it)?.film; if (f) films.set(f, (films.get(f) || 0) + 1); }
   const xs = $("#extraSel");
-  xs.innerHTML = extras.map((k) => `<option value="${k}">${t("extra." + k)}</option>`).join("");
+  xs.innerHTML = extras.map((k) => `<option value="${k}">${t("extra." + k)}</option>`).join("") +
+    (films.size > 1 ? [...films].sort((a, b) => b[1] - a[1]).map(([f, n]) => `<option value="film:${esc(f)}">${esc(t("extra.film", { name: f }))} (${n})</option>`).join("") : "");
+  if (UI.filter.extra.startsWith("film:") && !films.has(UI.filter.extra.slice(5))) UI.filter.extra = "all";
   /** @type {HTMLSelectElement} */ (xs).value = UI.filter.extra;
 }
 
@@ -45,6 +51,7 @@ export function isVisible(it) {
     case "manual": if (!it.manual) return false; break;
     case "starred": if (!(it.manual?.rating > 0)) return false; break;
     case "noraf": if (it.raf) return false; break;
+    default: if (f.extra.startsWith("film:") && recipeOf(it)?.film !== f.extra.slice(5)) return false;
   }
   if (f.search && !it.path.toLowerCase().includes(f.search.toLowerCase())) return false;
   return true;

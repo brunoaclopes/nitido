@@ -261,3 +261,32 @@ test("XMP build and in-place merge preserve foreign metadata", () => {
   const sc = mergeXmp(`<x:xmpmeta><rdf:RDF><rdf:Description rdf:about="" xmp:Rating="1"/></rdf:RDF></x:xmpmeta>`, { rating: 3, keywords: ["k"] });
   assert.match(sc, /xmp:Rating="3"[^>]*><dc:subject>/);
 });
+
+/* ---------- AI tiers ---------- */
+test("the suggested AI tier follows the machine and its measured speed", async () => {
+  const { suggestTier, TIERS } = await import("../src/ml/tiers.js");
+  assert.equal(suggestTier({ cores: 8, memory: 4, mobile: true }), "light");
+  assert.equal(suggestTier({ cores: 2 }), "light");
+  assert.equal(suggestTier({ cores: 6, memory: 8 }), "standard");
+  assert.equal(suggestTier({ cores: 10, memory: 8 }), "heavy");
+  assert.equal(suggestTier({ cores: 10 }), "heavy");               // Safari and Firefox do not report memory
+  assert.equal(suggestTier({ cores: 16, memory: 8 }), "max");
+  assert.equal(suggestTier({ cores: 16, memory: 8, rate: 2.4 }), "heavy"); // slow in practice: one step down
+  for (const t of Object.values(TIERS)) assert.ok(t.clip.id && t.objects && t.mb > 0);
+});
+
+/* ---------- Fujifilm recipe ---------- */
+test("decodes the film recipe from the MakerNote codes", async () => {
+  const { decodeRecipe, signed } = await import("../src/core/recipe.js");
+  // a real X-H2 file: Classic Negative, DR200, H/S −1, colour 0, NR +2, sharpness −2, CC strong, FX blue weak, WB auto R+4 B−6
+  const r = decodeRecipe({ film: 2048, sat: 0, sharp: 2, wb: 0, wbFine: [80, -120], nr: 256, clarity: 0, shadow: 16, highlight: 16,
+    grain: 0, colorChrome: 64, grainSize: 0, fxBlue: 32, drSetting: 1, dr: 200 });
+  assert.deepEqual([r.film, r.dr, r.highlight, r.shadow, r.color, r.nr, r.sharpness, r.clarity, r.grain, r.colorChrome, r.fxBlue, r.wb, r.wbShift],
+    ["Classic Neg.", "DR200", -1, -1, 0, 2, -2, 0, "off", "strong", "weak", "auto", [4, -6]]);
+  const mono = decodeRecipe({ sat: 0x501, sharp: 0x84, shadow: -24, highlight: 8, bwWarm: 2, grain: 64, grainSize: 32, drp: 1, drpFixed: 2 });
+  assert.equal(mono.film, "Acros + R"); assert.equal(mono.color, null); assert.equal(mono.monoWarm, 2);
+  assert.equal(mono.drp, "strong"); assert.equal(mono.highlight, null);   // D-Range Priority replaces the tones
+  assert.equal(mono.grainSize, "large"); assert.equal(mono.sharpness, 1);
+  assert.equal(signed(-1.5), "−1.5"); assert.equal(signed(2), "+2"); assert.equal(signed(0), "0");
+  assert.equal(decodeRecipe({}), null);
+});

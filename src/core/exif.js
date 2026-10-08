@@ -23,7 +23,8 @@ function values(v, t, le) {
   for (let i = 0; i < count; i++) {
     const o = off + i * size;
     switch (type) {
-      case 1: case 6: case 7: out.push(v.getUint8(o)); break;
+      case 1: case 7: out.push(v.getUint8(o)); break;
+      case 6: out.push(v.getInt8(o)); break;
       case 3: out.push(v.getUint16(o, le)); break;
       case 8: out.push(v.getInt16(o, le)); break;
       case 4: out.push(v.getUint32(o, le)); break;
@@ -58,6 +59,12 @@ function parseFuji(v, off) {
     blurWarning: num(v, ifd.get(0x1300), true),
     focusWarning: num(v, ifd.get(0x1301), true),
     exposureWarning: num(v, ifd.get(0x1302), true),
+    // the film recipe, as raw codes (decoded in recipe.js)
+    recipe: Object.fromEntries(Object.entries({
+      film: 0x1401, sat: 0x1003, sharp: 0x1001, wb: 0x1002, kelvin: 0x1005, wbFine: 0x100a, nr: 0x100b, clarity: 0x100f,
+      shadow: 0x1040, highlight: 0x1041, grain: 0x1047, colorChrome: 0x1048, bwWarm: 0x1049, bwMagenta: 0x104b, grainSize: 0x104c,
+      fxBlue: 0x104e, drSetting: 0x1402, dr: 0x1403, drp: 0x1443, drpAuto: 0x1444, drpFixed: 0x1445,
+    }).map(([k, tag]) => { const val = values(v, ifd.get(tag), true); return [k, val.length > 1 ? val : val[0]]; }).filter(([, x]) => x !== undefined)),
     facePositions: values(v, ifd.get(0x4103), true),
     elementTypes: values(v, ifd.get(0x4201), true),
     elementPositions: values(v, ifd.get(0x4203), true),

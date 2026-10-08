@@ -1,10 +1,12 @@
 // @ts-check
-import { $, $$, esc, fmtPx, fmtPct, fmtShutter, fmtTime, fmtDate, fmtNum, urlOf, pctBox } from "./dom.js";
+import { $, $$, esc, toast, fmtPx, fmtPct, fmtShutter, fmtTime, fmtDate, fmtNum, urlOf, pctBox } from "./dom.js";
 import { t } from "../i18n/index.js";
 import { S, saveSettings, emit } from "../app/state.js";
 import { unrotated } from "../core/geometry.js";
 import { rafPreview } from "../core/raf.js";
 import { LABEL_COLORS } from "./gallery.js";
+import { recipeOf, signed, recipeKey } from "../core/recipe.js";
+import { SESSION } from "../app/state.js";
 
 const LB = { open: false, it: null, list: [], url: null, fullFor: null };
 export const lbState = LB;
@@ -191,7 +193,44 @@ export function render(newImage = false) {
   if (camFlags.length) facts.push([t("fact.camWarn"), camFlags.join(", "), true]);
   $("#facts").innerHTML = facts.map(([k, val, warn]) => `<dt>${esc(k)}</dt><dd class="${warn ? "warn" : ""}">${esc(val)}</dd>`).join("");
 
+  $("#lbRecipe").innerHTML = recipeHTML(it);
   if (newImage) loadImage(it);
+}
+
+/* ---------- Fujifilm film recipe ---------- */
+const lvl = (v) => (v ? t("rec.v." + v) : null);
+/** Rows [label, value] of the recipe, in the order of Fujifilm's menus. */
+export function recipeRows(it) {
+  const r = recipeOf(it), m = it.meta || {};
+  if (!r) return [];
+  const wb = r.wb === "kelvin" && r.kelvin ? `${r.kelvin}K` : r.wb ? t("rec.wb." + r.wb) : null;
+  const shift = r.wbShift && (r.wbShift[0] || r.wbShift[1]) ? `R ${signed(r.wbShift[0])}  B ${signed(r.wbShift[1])}` : null;
+  return [
+    [t("rec.dr"), r.dr === "auto" ? t("rec.v.auto") : r.dr], [t("rec.drp"), lvl(r.drp)],
+    [t("rec.highlight"), r.highlight != null ? signed(r.highlight) : null], [t("rec.shadow"), r.shadow != null ? signed(r.shadow) : null],
+    [t("rec.color"), r.color != null ? signed(r.color) : null],
+    [t("rec.monoWarm"), r.monoWarm != null ? signed(r.monoWarm) : null], [t("rec.monoMagenta"), r.monoMagenta != null ? signed(r.monoMagenta) : null],
+    [t("rec.nr"), r.nr != null ? signed(r.nr) : null], [t("rec.sharpness"), r.sharpness != null ? signed(r.sharpness) : null],
+    [t("rec.clarity"), r.clarity != null ? signed(r.clarity) : null],
+    [t("rec.grain"), r.grain ? lvl(r.grain) + (r.grain !== "off" && r.grainSize ? ", " + lvl(r.grainSize) : "") : null],
+    [t("rec.colorChrome"), lvl(r.colorChrome)], [t("rec.fxBlue"), lvl(r.fxBlue)],
+    [t("rec.wb"), [wb, shift].filter(Boolean).join(", ") || null],
+    [t("rec.iso"), m.iso ? String(m.iso) : null], [t("rec.ev"), m.expComp != null ? `${signed(Math.round(m.expComp * 10) / 10)} EV` : null],
+  ].filter(([, v]) => v != null && v !== "");
+}
+/** The recipe as text, ready to paste (the Fuji X Weekly way of writing them). */
+export function recipeText(it) {
+  const r = recipeOf(it);
+  return r ? [r.film || "", ...recipeRows(it).map(([k, v]) => `${k}: ${v}`)].join("\n") : "";
+}
+function recipeHTML(it) {
+  const r = recipeOf(it);
+  if (!r) return "";
+  const key = recipeKey(r), same = SESSION.items.filter((x) => x !== it && x.meta && recipeKey(recipeOf(x)) === key).length;
+  return `<div class="recipe-head"><span class="label">${esc(t("rec.title"))}</span><b>${esc(r.film || "–")}</b>
+      <button class="btn small quiet" id="copyRecipe">${esc(t("rec.copy"))}</button></div>
+    <dl>${recipeRows(it).map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("")}</dl>
+    <p class="hint">${esc(same ? t("rec.same", { n: same }) : t("rec.unique"))}</p>`;
 }
 
 async function loadImage(it) {
@@ -249,5 +288,9 @@ export function bindLightbox() {
   $("#flagSeg").addEventListener("click", (e) => { const b = /** @type {HTMLElement} */ (e.target).closest("button"); if (b) emit("manual", { items: [LB.it], patch: { flag: b.dataset.flag || null } }); });
   $("#starsIn").addEventListener("click", (e) => { const b = /** @type {HTMLElement} */ (e.target).closest("button"); if (b) { const n = +b.dataset.star; emit("manual", { items: [LB.it], patch: { rating: LB.it.manual?.rating === n ? null : n } }); } });
   $("#labelsIn").addEventListener("click", (e) => { const b = /** @type {HTMLElement} */ (e.target).closest("button"); if (b) emit("manual", { items: [LB.it], patch: { label: b.dataset.label || null } }); });
+  $("#lbRecipe").addEventListener("click", async (e) => {
+    if (!(/** @type {HTMLElement} */ (e.target).closest("#copyRecipe"))) return;
+    try { await navigator.clipboard.writeText(recipeText(LB.it)); toast(t("rec.copied")); } catch { toast(t("rec.copyFailed")); }
+  });
   $("#groupBox").addEventListener("click", (e) => { const b = /** @type {HTMLElement} */ (e.target).closest("[data-edit]"); if (b) emit("edit", { type: b.dataset.edit, it: LB.it }); });
 }

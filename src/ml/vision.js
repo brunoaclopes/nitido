@@ -14,17 +14,20 @@ async function create(Task, fileset, options) {
   }
 }
 
-/** Loads both models once. Failures leave the feature off; analysis continues without it. */
-export function initVision({ faces = true, objects = true } = {}) {
-  if (ready) return ready;
+/** Loads the models for a tier; changing tier swaps the subject detector (faces use the same model
+ *  at every tier). Failures leave the feature off; analysis continues without it. */
+let mp = null, fileset = null, loadedObj = null, wanted = "";
+export function initVision({ faces = true, objects = true, tier = "standard" } = {}) {
+  const key = `${faces}|${objects}|${tier}`;
+  if (ready && wanted === key) return ready;
+  wanted = key;
   ready = (async () => {
-    const cfg = await modelConfig();
-    let mp, fileset;
+    const cfg = await modelConfig(tier);
     try {
-      mp = await import(/* @vite-ignore */ cfg.mediapipe);
-      fileset = await mp.FilesetResolver.forVisionTasks(cfg.mediapipeWasm);
+      mp ||= await import(/* @vite-ignore */ cfg.mediapipe);
+      fileset ||= await mp.FilesetResolver.forVisionTasks(cfg.mediapipeWasm);
     } catch (e) { visionStatus.error = String(e?.message || e); visionStatus.faces = visionStatus.objects = "error"; return; }
-    if (faces) {
+    if (faces && !faceLm) {
       visionStatus.faces = "loading";
       try {
         faceLm = await create(mp.FaceLandmarker, fileset, {
@@ -34,14 +37,19 @@ export function initVision({ faces = true, objects = true } = {}) {
         visionStatus.faces = "ready";
       } catch (e) { visionStatus.faces = "error"; visionStatus.error = String(e?.message || e); }
     }
-    if (objects) {
-      visionStatus.objects = "loading";
-      try {
-        objDet = await create(mp.ObjectDetector, fileset, {
-          baseOptions: { modelAssetPath: cfg.objectModel }, runningMode: "IMAGE", scoreThreshold: 0.35, maxResults: 6,
-        });
-        visionStatus.objects = "ready";
-      } catch (e) { visionStatus.objects = "error"; visionStatus.error = String(e?.message || e); }
+    const objUrl = objects ? cfg.objectModel : null;
+    if (objUrl !== loadedObj) {
+      try { objDet?.close?.(); } catch {}
+      objDet = null; loadedObj = null;
+      visionStatus.objects = objUrl ? "loading" : "off";
+      if (objUrl) {
+        try {
+          objDet = await create(mp.ObjectDetector, fileset, {
+            baseOptions: { modelAssetPath: objUrl }, runningMode: "IMAGE", scoreThreshold: 0.35, maxResults: 6,
+          });
+          loadedObj = objUrl; visionStatus.objects = "ready";
+        } catch (e) { visionStatus.objects = "error"; visionStatus.error = String(e?.message || e); }
+      }
     }
   })();
   return ready;

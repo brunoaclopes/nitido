@@ -37,7 +37,7 @@ and the keepers sorted onto your NAS. No photo leaves your computer.
 
 ## Use it
 
-**Online:** open **[brunoaclopes.github.io/nitido](https://brunoaclopes.github.io/nitido/)** in Chrome or Edge and choose your shoot folder (JPEG and RAF together, straight off the card). Everything runs in your browser; the AI models (~100 MB) download once.
+**Online:** open **[brunoaclopes.github.io/nitido](https://brunoaclopes.github.io/nitido/)** in Chrome or Edge and choose your shoot folder (JPEG and RAF together, straight off the card). Everything runs in your browser; the AI models download once (100–400 MB, by tier).
 
 **Locally:** with [Node.js](https://nodejs.org) 18 or newer, there is nothing to install:
 
@@ -47,6 +47,17 @@ npm run models       # optional: keep the AI models in ./models to work fully of
 ```
 
 Reopening a folder is instant: results and your decisions are kept in the browser. After changing the AI models, or to pick up files added to the folder, **Reanalyse** measures it again from scratch and keeps your decisions.
+
+**AI tier.** Under *AI models*, pick how much work the analysis does; the app suggests one for your computer from its cores, memory and the speed of earlier runs.
+
+| Tier | Similarity and quality | Subject detector | Download | Per photo* |
+| --- | --- | --- | --- | --- |
+| Light | MobileCLIP S0 | EfficientDet-Lite0 | ~100 MB | 0.3 s |
+| Standard | MobileCLIP S2 | EfficientDet-Lite0 | ~220 MB | 0.9 s |
+| Heavy | SigLIP B/16 | EfficientDet-Lite2 | ~225 MB | 1.5 s |
+| Max | SigLIP 2 B/16 | EfficientDet-Lite2, full precision | ~405 MB | 1.5 s |
+
+<sub>*Measured on a 12-core Mac; it runs in the background while the photos are measured. SigLIP and SigLIP 2 are the Pareto-optimal models in [Immich's search benchmark](https://docs.immich.app/features/searching) (81.9% and 84.9% recall against 69.9% for OpenAI's ViT-B/32); MobileCLIP is Apple's lighter family, ahead of ViT-B/32. Each model's similarity scale was calibrated on X-H2 bursts. `npm run models -- heavy` keeps a tier's models for offline use.</sub>
 
 ## A shoot, start to finish
 
@@ -66,10 +77,10 @@ Lightroom is optional: XMP sidecars with stars, colour labels and keywords can s
 3. **Choose where to measure**, in this order: the main face's eyes, the face, the camera's own eye and face boxes, the AF point, the camera's subject box, the detected subject, and finally the sharpest area of the frame. People count as the subject only when the camera focused on them: when it focused sharply on something else, background people are ignored and a prominent soft face only asks for a look (*Person out of focus*).
 4. **Measure blur at 100%** as edge width in pixels, with the re-blur method of Zhuo & Sim sampled on edge centre lines only. Contrast and texture do not change the reading, so a lone crisp edge on smooth car paint or sky measures as sharp.
 5. **Compare with neighbours**: a frame much softer at a coarse scale than a similar one shot seconds apart is flagged as shaken, which catches shake that film grain hides.
-6. **CLIP** (optional) gives the similarity used for grouping, a quality score and a name for each group ("Sea and beach · 09:31").
+6. **The similarity model** of the AI tier (MobileCLIP or SigLIP) gives the similarity used for grouping, a quality score and a name for each group ("Sea and beach · 09:31").
 7. **Verdict and score**: Keep, Review or Reject with reasons, and a 0–100 score to pick the best of each group. Intentional background blur is recognised and not penalised; eyes narrowed by a laugh are not counted as closed; *Overexposed* means blown skin on the main face or a frame that is mostly pure white, not a white shirt or a sunlit wall. The camera's own flags are named (shake risk, focus not confirmed, exposure), and its shake flag is shown only when the measured blur agrees.
 
-**Fujifilm details.** `FocusPixel` is read in the JPEG's own pixel frame (confirmed on 51 sample files, X-H2 included, by the [riffle](https://github.com/minodisk/riffle) project) and ignored in manual focus, where the camera writes a stale point. The camera's own face, eye and subject boxes are used too. Default limits were calibrated on X-H2 files: sharp frames read 0.7–1.4 px, visibly soft ones 2 px and up.
+**Fujifilm details.** The loupe shows the **film recipe** each photo was taken with, as the camera's menus write it: film simulation, dynamic range or D-Range Priority, highlight, shadow, colour, noise reduction, sharpness, clarity, grain, Color Chrome and FX Blue, white balance with its shift, ISO and exposure compensation. It says how many photos in the shoot share it, copies it as text, and each film simulation gets its own filter. `FocusPixel` is read in the JPEG's own pixel frame (confirmed on 51 sample files, X-H2 included, by the [riffle](https://github.com/minodisk/riffle) project) and ignored in manual focus, where the camera writes a stale point. The camera's own face, eye and subject boxes are used too. Default limits were calibrated on X-H2 files: sharp frames read 0.7–1.4 px, visibly soft ones 2 px and up.
 
 ## Keyboard
 
@@ -87,9 +98,9 @@ Lightroom is optional: XMP sidecars with stars, colour labels and keywords can s
 
 ## Limitations
 
-- A badly blurred or shaken frame with heavy grain (Grain Effect) can measure as sharp, because the grain is the only fine detail left. A similar frame shot seconds apart catches it; a lone frame like that can slip through.
+- A badly blurred or shaken frame can measure as sharp when fine texture (sensor noise, the film simulation's rendering, Grain Effect) is the only crisp detail left. A similar frame shot seconds apart catches it; a lone frame like that can slip through.
 - Face detection is most reliable on frontal, reasonably large faces. Strong profiles are not counted as closed eyes.
-- CLIP is the quantised ViT-B/32 in WebAssembly; on slow machines it can be turned off under *AI models*.
+- The similarity model runs in WebAssembly; on slow machines pick the Light tier, or turn it off under *AI models*.
 
 ## For developers
 
@@ -113,7 +124,7 @@ It is a static site: the push to `main` deploys it to GitHub Pages. To host it e
 
 ### Usar
 
-**Online:** abre **[brunoaclopes.github.io/nitido](https://brunoaclopes.github.io/nitido/)** no Chrome ou no Edge e escolhe a pasta da sessão (JPEG e RAF juntos, como saem do cartão). Tudo corre no teu browser; os modelos de IA (~100 MB) descarregam-se uma vez.
+**Online:** abre **[brunoaclopes.github.io/nitido](https://brunoaclopes.github.io/nitido/)** no Chrome ou no Edge e escolhe a pasta da sessão (JPEG e RAF juntos, como saem do cartão). Tudo corre no teu browser; os modelos de IA descarregam-se uma vez (100–400 MB, conforme o nível).
 
 **No teu computador:** com o [Node.js](https://nodejs.org) 18 ou mais recente, não há nada para instalar:
 
@@ -123,6 +134,8 @@ npm run models       # opcional: guarda os modelos em ./models para funcionar to
 ```
 
 Reabrir uma pasta é imediato: os resultados e as tuas decisões ficam guardados no browser. Depois de mudares os modelos de IA, ou para apanhar ficheiros novos na pasta, **Reanalisar** mede-a outra vez de raiz e mantém as tuas decisões.
+
+**Nível de IA.** Nos *Modelos de IA* escolhes quanto trabalho faz a análise: Leve (MobileCLIP S0, ~100 MB), Normal (MobileCLIP S2, ~220 MB), Pesado (SigLIP B/16, ~225 MB) ou Máximo (SigLIP 2 B/16, ~405 MB). A app sugere um para o teu computador a partir dos núcleos, da memória e da velocidade das análises anteriores. A tabela com os tempos medidos está [na versão inglesa](#use-it).
 
 ### Uma sessão, do início ao fim
 
@@ -148,10 +161,10 @@ O Lightroom é opcional: os XMP com estrelas, etiquetas de cor e palavras-chave 
 3. **Escolhe onde medir**, por esta ordem: olhos do rosto principal, rosto, olhos e rosto detetados pela câmara, ponto de AF, sujeito da câmara, sujeito detetado e, por fim, a zona mais nítida. As pessoas só contam como sujeito quando a câmara focou nelas: se focou nítido noutra coisa, as pessoas ao fundo são ignoradas e um rosto grande desfocado só pede para veres (*Pessoa desfocada*).
 4. **Mede o desfoque a 100%** em píxeis de largura de aresta (método de re-blur de Zhuo & Sim, medido só no centro das arestas). Não depende do contraste nem da textura, por isso uma aresta nítida numa pintura lisa ou no céu mede como nítida.
 5. **Compara com as vizinhas**: uma foto muito menos nítida a escala grosseira do que uma parecida tirada segundos antes ou depois é marcada como tremida; isto apanha o tremido que o grão esconde.
-6. **CLIP** (opcional) dá a semelhança para agrupar, uma pontuação de qualidade e um nome para cada grupo ("Mar e praia · 09:31").
+6. **O modelo de semelhança** do nível de IA (MobileCLIP ou SigLIP) dá a semelhança para agrupar, uma pontuação de qualidade e um nome para cada grupo ("Mar e praia · 09:31").
 7. **Veredicto e pontuação**: Manter, Rever ou Rejeitar com motivos, e uma pontuação de 0 a 100 para escolher a melhor do grupo. O fundo desfocado intencional não penaliza, olhos semicerrados a rir não contam como fechados, e *Sobre-exposta* quer dizer pele queimada no rosto principal ou uma imagem quase toda branca, não uma camisa branca ou uma parede ao sol. Os avisos da própria câmara aparecem com nome (risco de tremido, foco não confirmado, exposição), e o de tremido só quando o desfoque medido o confirma.
 
-**Detalhes Fujifilm.** O `FocusPixel` é lido no referencial do próprio JPEG (confirmado em 51 ficheiros, X-H2 incluída, pelo projeto [riffle](https://github.com/minodisk/riffle)) e ignorado em foco manual, onde a câmara escreve um ponto antigo. Os rostos, olhos e sujeitos detetados pela câmara também são usados. Os limites por omissão foram calibrados com ficheiros da X-H2: fotos nítidas medem 0,7–1,4 px, as visivelmente desfocadas 2 px ou mais.
+**Detalhes Fujifilm.** A lupa mostra a **receita** com que cada foto foi tirada, como nos menus da câmara: simulação de filme, gama dinâmica ou Prioridade D-Range, altas luzes, sombras, cor, redução de ruído, nitidez, claridade, grão, Color Chrome e FX Blue, equilíbrio de brancos com o desvio, ISO e compensação de exposição. Diz quantas fotos da sessão a partilham, copia-a como texto, e cada simulação de filme tem o seu filtro. O `FocusPixel` é lido no referencial do próprio JPEG (confirmado em 51 ficheiros, X-H2 incluída, pelo projeto [riffle](https://github.com/minodisk/riffle)) e ignorado em foco manual, onde a câmara escreve um ponto antigo. Os rostos, olhos e sujeitos detetados pela câmara também são usados. Os limites por omissão foram calibrados com ficheiros da X-H2: fotos nítidas medem 0,7–1,4 px, as visivelmente desfocadas 2 px ou mais.
 
 ### Atalhos
 
@@ -169,8 +182,8 @@ O Lightroom é opcional: os XMP com estrelas, etiquetas de cor e palavras-chave 
 
 ### Limitações
 
-- Uma foto muito desfocada ou tremida com muito grão (Grain Effect) pode medir como nítida, porque o grão é o único detalhe fino que resta. Uma foto parecida tirada segundos antes ou depois apanha-a; uma foto isolada assim pode escapar.
+- Uma foto muito desfocada ou tremida pode medir como nítida quando a textura fina (ruído do sensor, o desenho da simulação de filme, o Grain Effect) é o único detalhe nítido que resta. Uma foto parecida tirada segundos antes ou depois apanha-a; uma foto isolada assim pode escapar.
 - A deteção de rostos é mais fiável em rostos de frente e razoavelmente grandes. Perfis pronunciados não contam como olhos fechados.
-- O CLIP é a variante quantizada ViT-B/32 em WebAssembly; em máquinas lentas pode ser desligado nos *Modelos de IA*.
+- O modelo de semelhança corre em WebAssembly; em máquinas lentas escolhe o nível Leve, ou desliga-o nos *Modelos de IA*.
 
 Para programadores, os testes e o alojamento estão descritos [em inglês, acima](#for-developers).

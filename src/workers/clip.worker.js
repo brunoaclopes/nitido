@@ -1,12 +1,13 @@
 // @ts-check
 /// <reference lib="webworker" />
-/** CLIP ViT-B/32 (quantised, ~90 MB, cached by the browser after the first run).
+/** Image–text model of the chosen AI tier (MobileCLIP or SigLIP, quantised, cached by the browser
+ *  after the first run):
  *  - embeddings for grouping similar photos
  *  - zero-shot quality and sharpness (CLIP-IQA antonym prompt pairs)
  *  - a scene label to auto-name groups */
 import { SCENE_LABELS } from "../ml/labels.js";
 
-let T, processor, vision, labelKeys = [], labelEmb = null, pairs = null;
+let T, processor, vision, family = "clip", labelKeys = [], labelEmb = null, pairs = null;
 const post = (m) => /** @type {any} */ (self).postMessage(m);
 
 const PAIRS = {
@@ -17,7 +18,8 @@ const norm = (v) => { let s = 0; for (const x of v) s += x * x; s = Math.sqrt(s)
 const dot = (a, b) => { let s = 0; for (let i = 0; i < a.length; i++) s += a[i] * b[i]; return s; };
 const rows = (t) => { const [n, d] = t.dims; return Array.from({ length: n }, (_, i) => norm(t.data.slice(i * d, (i + 1) * d))); };
 
-async function init({ libUrl, model, localModelPath }) {
+async function init({ libUrl, model, family: fam = "clip", localModelPath }) {
+  family = fam;
   T = await import(libUrl);
   T.env.allowLocalModels = !!localModelPath;
   if (localModelPath) T.env.localModelPath = localModelPath;
@@ -25,10 +27,19 @@ async function init({ libUrl, model, localModelPath }) {
   const progress_callback = (p) => { if (p.status === "progress") post({ op: "progress", file: p.file, loaded: p.loaded, total: p.total }); };
   const opts = { dtype: "q8", device: "wasm", progress_callback };
   processor = await T.AutoProcessor.from_pretrained(model, { progress_callback });
-  vision = await T.CLIPVisionModelWithProjection.from_pretrained(model, opts);
+  // MobileCLIP and OpenAI CLIP share the CLIP classes; SigLIP has its own and returns the pooled output
+  const siglip = family === "siglip";
+  // MobileCLIP is convolutional, and its 8-bit image model loses the plot (same-burst frames score below
+  // unrelated scenes): its image side runs at full precision
+  vision = await (siglip ? T.SiglipVisionModel : T.CLIPVisionModelWithProjection).from_pretrained(model, family === "mobileclip" ? { ...opts, dtype: "fp32" } : opts);
   const tokenizer = await T.AutoTokenizer.from_pretrained(model, { progress_callback });
-  const text = await T.CLIPTextModelWithProjection.from_pretrained(model, opts);
-  const embedTexts = async (list) => rows((await text(tokenizer(list, { padding: true, truncation: true }))).text_embeds);
+  const text = await (siglip ? T.SiglipTextModel : T.CLIPTextModelWithProjection).from_pretrained(model, opts);
+  const embedTexts = async (list) => {
+    // SigLIP and MobileCLIP text encoders expect prompts padded to their fixed length
+    const pad = siglip ? { padding: "max_length", truncation: true, max_length: 64 } : family === "mobileclip" ? { padding: "max_length", truncation: true } : { padding: true, truncation: true };
+    const out = await text(tokenizer(list, pad));
+    return rows(siglip ? out.pooler_output : out.text_embeds);
+  };
   pairs = {};
   for (const [k, ps] of Object.entries(PAIRS)) {
     const e = await embedTexts(ps.flat());
@@ -52,7 +63,8 @@ function pairScore(emb, list) {
 async function embed(images) {
   const raw = images.map((im) => new T.RawImage(new Uint8ClampedArray(im.data), im.width, im.height, 4).rgb());
   const inputs = await processor(raw);
-  return rows((await vision(inputs)).image_embeds);
+  const out = await vision(inputs);
+  return rows(family === "siglip" ? out.pooler_output : out.image_embeds);
 }
 
 self.onmessage = async (e) => {

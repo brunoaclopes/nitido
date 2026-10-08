@@ -9,6 +9,7 @@ import { exportXmp, exportCsv, exportJson, exportMoveScripts } from "./app/expor
 import { sharpThreshold } from "./core/scoring.js";
 import { hashStr, debounce } from "./core/util.js";
 import { visionStatus } from "./ml/vision.js";
+import { TIERS, tierOf, suggestTier, machine } from "./ml/tiers.js";
 import { clipStatus, onClipStatus } from "./ml/clip.js";
 import { $, $$, esc, fmtNum, fmtDuration, toast, revokeAll } from "./ui/dom.js";
 import { renderToolbar, layout, refresh, appendLive, visibleOrder, setDensity } from "./ui/gallery.js";
@@ -86,6 +87,21 @@ function renderAi() {
   $("#ldModels").textContent = parts.join(" · ");
 }
 onClipStatus(() => renderAi());
+
+/* ================================================================ AI tier */
+const MACHINE = machine();
+const suggested = () => suggestTier({ ...MACHINE, rate: S.rates?.standard });
+function renderTier() {
+  const sug = suggested(), tier = S.tier || sug;
+  $$("#tierSeg button").forEach((b) => { b.setAttribute("aria-pressed", String(b.dataset.v === tier)); b.classList.toggle("suggested", b.dataset.v === sug); });
+  $("#tierInfo").textContent = t("tier.desc." + tier, { mb: TIERS[tier].mb });
+  const why = [MACHINE.mobile ? t("tier.phone") : null, t("tier.cores", { n: MACHINE.cores }),
+    MACHINE.memory != null ? t(MACHINE.memory >= 8 ? "tier.memory" : "tier.memoryLow", { gb: MACHINE.memory }) : null,
+    S.rates?.standard ? t("tier.rate", { s: fmtNum(S.rates.standard) }) : null].filter(Boolean).join(", ");
+  $("#tierSuggest").innerHTML = sug === tier ? esc(t("tier.isSuggested")) + ` <span class="hint">(${esc(why)})</span>`
+    : esc(t("tier.suggest", { tier: "\u0000", why })).replace("\u0000", `<b>${esc(t("tier." + sug))}</b>`);
+  $("#emptyFine").textContent = t("empty.fine", { mb: TIERS[tier].mb, tier: t("tier." + tier) });
+}
 setInterval(() => { if (app.dataset.state !== "empty") renderAi(); }, 1500);
 
 /* ================================================================ loader */
@@ -142,7 +158,8 @@ async function startSession({ name, list, dir }, { keepDecisions = false } = {})
   $("#cullBtn").hidden = false; $("#finishBtn").hidden = false;
   renderSessionInfo();
   $("#xmpHint").textContent = dir ? t("export.xmpHintDir") : t("export.xmpHintZip");
-  showLoader("prep", t("load.prepTitle"), t("load.prepText", { n: items.length }) + (S.rate ? " · " + t("load.estimate", { t: fmtDuration(S.rate * items.length) }) : ""));
+  const rate = S.rates?.[S.tier];
+  showLoader("prep", t("load.prepTitle"), t("load.prepText", { n: items.length }) + (rate ? " · " + t("load.estimate", { t: fmtDuration(rate * items.length) }) : ""));
   for (const it of items) appendLive(it);
   try {
     await run(items, hooks);
@@ -180,7 +197,10 @@ const hooks = {
     renderAll();
     if (!UI.baseline) fixBaseline(false);
     // seconds per photo on this machine, for the estimate shown before the next run
-    if (done - cached >= 5 && secs > 0) { const r = secs / (done - cached); S.rate = S.rate ? 0.6 * S.rate + 0.4 * r : r; saveSettings(); }
+    if (done - cached >= 5 && secs > 0) {
+      const r = secs / (done - cached), old = S.rates?.[S.tier];
+      S.rates = { ...(S.rates || {}), [S.tier]: old ? 0.6 * old + 0.4 * r : r }; saveSettings(); renderTier();
+    }
     let msg = done < total ? t("done.partial", { done, total }) : t("done.full", { n: done, t: fmtDuration(secs) }) + (cached ? " " + t("done.cached", { n: cached }) : "");
     if (!S.calib && !S.calibHinted && ready().length >= 24) { S.calibHinted = true; saveSettings(); msg += " " + t("cal.hint"); }
     toast(msg, 8000);
@@ -302,6 +322,11 @@ function bindSide() {
     await forgetTaste(); syncSide(); recompute(); renderAll(); toast(t("ai.forgotten"));
   });
   $("#calibBtn").addEventListener("click", () => { if (!openCalibration()) toast(t("cal.need")); });
+  $("#tierSeg").addEventListener("click", (e) => {
+    const b = /** @type {HTMLElement} */ (e.target).closest("button"); if (!b || b.dataset.v === S.tier) return;
+    S.tier = b.dataset.v; saveSettings(); renderTier(); renderAi();
+    if (SESSION.items.length) toast(t("tier.changed", { tier: t("tier." + S.tier) }), 8000);
+  });
   $("#baseBtn").addEventListener("click", () => fixBaseline(true));
   $("#resetBtn").addEventListener("click", () => { resetTuning(); syncSide(); if (SESSION.items.length) { recompute({ regroup: true }); layout(); renderAll(); } toast(t("cmp.resetDone")); });
 }
@@ -396,7 +421,7 @@ async function reanalyse() {
   if (!SESSION.items.length) return;
   if (RUN.running) { toast(t("export.wait")); return; }
   const old = SESSION.items;
-  await dropCache(old.flatMap((it) => [cacheKey(it.path, it.file)]));
+  await dropCache(old.flatMap((it) => [cacheKey(it.path, it.file, S.tier)]));
   let src = null;
   if (SESSION.dir) {
     try {
@@ -412,7 +437,7 @@ async function reanalyse() {
     beginLoading();
     src = { name: SESSION.name, list, dir: SESSION.dir };
   }
-  await dropCache(buildItems(src.list).map((it) => cacheKey(it.path, it.file)));
+  await dropCache(buildItems(src.list).map((it) => cacheKey(it.path, it.file, S.tier)));
   toast(t("re.started"));
   await startSession(src, { keepDecisions: true });
 }
@@ -460,7 +485,7 @@ function bindInput() {
 /* ================================================================ language */
 function bindLang() {
   $$(".lang button").forEach((b) => b.addEventListener("click", () => {
-    S.lang = b.dataset.lang; saveSettings(); setLang(S.lang); applyI18n(); syncSide();
+    S.lang = b.dataset.lang; saveSettings(); setLang(S.lang); applyI18n(); syncSide(); renderTier();
     if (SESSION.items.length) { recompute(); layout(); renderAll(); }
     if (SESSION.items.length) renderSessionInfo();
     renderAi();
@@ -540,7 +565,8 @@ function boot() {
   // installable and usable offline once the models have been fetched
   if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost" || location.hostname === "127.0.0.1"))
     navigator.serviceWorker.register("sw.js").catch(() => {});
-  syncSide(); setDensity(); renderAi();
+  if (!S.tier || !TIERS[S.tier]) { S.tier = suggested(); saveSettings(); }
+  syncSide(); setDensity(); renderAi(); renderTier();
   window.addEventListener("resize", debounce(drawHist, 100));
   if (location.protocol === "file:") toast(t("err.fileProtocol"), 15000);
 }

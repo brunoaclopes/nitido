@@ -2,7 +2,7 @@
 /** IndexedDB: analysis cache (reopening a folder is instant) and per-folder sessions
  *  (manual decisions, group names and edits). */
 const DB = "nitido", VERSION = 1;
-export const CACHE_VERSION = 7;
+export const CACHE_VERSION = 8;
 let dbp = null;
 
 function open() {
@@ -43,4 +43,4 @@ export const getMeta = (key) => tx("sessions", "readonly", (s) => s.get("__" + k
 export const putMeta = (key, value) => tx("sessions", "readwrite", (s) => s.put(value, "__" + key));
 
 /** Stable key for a file's analysis. */
-export const cacheKey = (path, file) => `${path}|${file.size}|${file.lastModified}|v${CACHE_VERSION}`;
+export const cacheKey = (path, file, tier = "standard") => `${path}|${file.size}|${file.lastModified}|v${CACHE_VERSION}|${tier}`;
