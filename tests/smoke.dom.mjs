@@ -138,6 +138,13 @@ const fin = await import("../src/ui/finish.js");
 await fin.openFinish();
 console.log("finish dialog:", els.finishBody.innerHTML.includes("data-a=\"script\"") ? "script fallback" : "write mode");
 fin.closeFinish();
+// reanalyse: every photo decoded again (no cache), decisions kept
+const decodesBefore = decodes, decided = SESSION.items.filter((i) => i.manual?.flag).map((i) => i.path).sort().join();
+els.reanalyseBtn._l.click[0]();
+await new Promise((r) => setTimeout(r, 1500));
+const decidedAfter = SESSION.items.filter((i) => i.manual?.flag).map((i) => i.path).sort().join();
+console.log("reanalyse:", `${decodes - decodesBefore} decoded again`, "| decisions kept:", decided === decidedAfter && decided !== "" ? "yes" : `NO (${decided} → ${decidedAfter})`);
+if (decodes - decodesBefore !== SESSION.items.length || decided !== decidedAfter) errors.push("reanalyse did not measure everything again or lost decisions");
 const { trainPersonal } = await import("../src/app/model.js");
 console.log("personal model with 1 decision:", trainPersonal().model === null ? "needs more (ok)" : "trained");
 console.log(errors.length ? "ERRORS:\n" + errors.join("\n") : "no errors");

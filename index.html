@@ -50,6 +50,7 @@
         <button role="menuitem" data-export="scripts"><b data-i18n="export.scripts"></b><span data-i18n="export.scriptsHint"></span></button>
       </div>
     </div>
+    <button class="btn quiet" id="reanalyseBtn" hidden data-i18n="top.reanalyse" data-i18n-attr="title:top.reanalyseHint"></button>
     <button class="btn quiet" id="openBtn" hidden data-i18n="top.open"></button>
   </header>
 
@@ -86,8 +87,9 @@
   </section>
 
   <!-- side panel -->
-  <div class="backdrop" id="backdrop" hidden></div>
+  <div class="backdrop" id="backdrop"></div>
   <aside class="side" id="side">
+    <div class="side-head"><b data-i18n="top.panel"></b><button class="btn quiet small" id="sideClose" data-i18n="lb.close"></button></div>
     <details class="group" open>
       <summary data-i18n="side.overview"></summary>
       <div class="stats" id="stats"></div>
@@ -155,6 +157,7 @@
       <label class="check"><input type="checkbox" id="ai-objects"> <span data-i18n="ai.objects"></span></label>
       <label class="check"><input type="checkbox" id="ai-clip"> <span data-i18n="ai.clip"></span></label>
       <p class="hint" data-i18n="ai.hint"></p>
+      <div class="row-btns"><button class="btn small" id="reanalyseSide" data-i18n="top.reanalyse"></button></div>
       <h3 class="sub" data-i18n="ai.personal"></h3>
       <p class="hint" id="personalInfo"></p>
       <label class="check"><input type="checkbox" id="f-usePersonal"> <span data-i18n="ai.usePersonal"></span></label>

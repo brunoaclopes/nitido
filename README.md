@@ -46,7 +46,7 @@ npm start            # opens http://127.0.0.1:4173
 npm run models       # optional: keep the AI models in ./models to work fully offline
 ```
 
-Reopening a folder is instant: results and your decisions are kept in the browser.
+Reopening a folder is instant: results and your decisions are kept in the browser. After changing the AI models, or to pick up files added to the folder, **Reanalyse** measures it again from scratch and keeps your decisions.
 
 ## A shoot, start to finish
 
@@ -122,7 +122,7 @@ npm start            # abre http://127.0.0.1:4173
 npm run models       # opcional: guarda os modelos em ./models para funcionar totalmente offline
 ```
 
-Reabrir uma pasta é imediato: os resultados e as tuas decisões ficam guardados no browser.
+Reabrir uma pasta é imediato: os resultados e as tuas decisões ficam guardados no browser. Depois de mudares os modelos de IA, ou para apanhar ficheiros novos na pasta, **Reanalisar** mede-a outra vez de raiz e mantém as tuas decisões.
 
 ### Uma sessão, do início ao fim
 

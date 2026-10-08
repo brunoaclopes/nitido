@@ -33,6 +33,8 @@ async function tx(store, mode, fn) {
 export const getCache = (key) => tx("cache", "readonly", (s) => s.get(key));
 export const putCache = (key, value) => tx("cache", "readwrite", (s) => s.put(value, key));
 export const clearCache = () => tx("cache", "readwrite", (s) => s.clear());
+/** Forgets the analysis of these keys, so the photos are measured again. */
+export const dropCache = (keys) => tx("cache", "readwrite", (s) => { for (const k of keys) s.delete(k); });
 export const getSession = (key) => tx("sessions", "readonly", (s) => s.get(key));
 export const putSession = (key, value) => tx("sessions", "readwrite", (s) => s.put(value, key));
 

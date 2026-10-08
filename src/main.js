@@ -3,6 +3,7 @@ import { setLang, applyI18n, t, getLang } from "./i18n/index.js";
 import { S, SESSION, UI, saveSettings, resetTuning, loadSession, touchSession, on, emit } from "./app/state.js";
 import { captureDrop, readDrop, readHandle, readInput, pickFolder, canWrite } from "./app/files.js";
 import { buildItems, run, stop, RUN } from "./app/pipeline.js";
+import { dropCache, cacheKey } from "./app/store.js";
 import { recompute, setManual, ready } from "./app/model.js";
 import { exportXmp, exportCsv, exportJson, exportMoveScripts } from "./app/exporter.js";
 import { sharpThreshold } from "./core/scoring.js";
@@ -115,7 +116,8 @@ function beginLoading() {
 }
 const countFiles = (n) => showLoader("read", t("load.readTitle"), t("load.found", { n }));
 
-async function startSession({ name, list, dir }) {
+async function startSession({ name, list, dir }, { keepDecisions = false } = {}) {
+  const prev = { key: SESSION.key, data: SESSION.data };
   const items = buildItems(list);
   if (!items.length) {
     hideLoader();
@@ -128,12 +130,15 @@ async function startSession({ name, list, dir }) {
   SESSION.key = `${name}|${hashStr(items.slice(0, 40).map((i) => i.path).join("\n"))}`;
   UI.selection.clear(); UI.collapsed.clear(); UI.baseline = null;
   await loadSession(SESSION.key);
+  // the same folder again: what is in memory is newer than what was last saved (and the key changes
+  // when Finish has moved files out, as it is built from the file list)
+  if (keepDecisions && prev.data) { SESSION.data = prev.data; touchSession(); }
   await loadTaste();
   SESSION.data.model = taste.model;
   SESSION.coarseRefs = null;
   analysed = 0;
   $("#gallery").textContent = "";
-  $("#session").hidden = false; $("#exportWrap").hidden = false; $("#openBtn").hidden = false; $("#searchWrap").hidden = false;
+  $("#session").hidden = false; $("#exportWrap").hidden = false; $("#openBtn").hidden = false; $("#searchWrap").hidden = false; $("#reanalyseBtn").hidden = false;
   $("#cullBtn").hidden = false; $("#finishBtn").hidden = false;
   renderSessionInfo();
   $("#xmpHint").textContent = dir ? t("export.xmpHintDir") : t("export.xmpHintZip");
@@ -376,6 +381,42 @@ function bindExport() {
   });
 }
 
+/** The tuning panel as a drawer (narrow screens): open or close it. */
+function setSide(open) {
+  app.classList.toggle("side-open", open);
+  $("#menuBtn").setAttribute("aria-expanded", String(open));
+  if (open) requestAnimationFrame(drawHist);
+}
+
+/* ================================================================ reanalyse */
+/** Measures the current folder again from scratch. Decisions, stars, labels and group edits are kept
+ *  (they belong to the folder, not to the analysis). A folder opened with Choose folder is read again,
+ *  so files added, moved or removed since are taken into account. */
+async function reanalyse() {
+  if (!SESSION.items.length) return;
+  if (RUN.running) { toast(t("export.wait")); return; }
+  const old = SESSION.items;
+  await dropCache(old.flatMap((it) => [cacheKey(it.path, it.file)]));
+  let src = null;
+  if (SESSION.dir) {
+    try {
+      let perm = await SESSION.dir.queryPermission({ mode: "read" });
+      if (perm !== "granted") perm = await SESSION.dir.requestPermission({ mode: "read" });
+      if (perm === "granted") { beginLoading(); src = await readHandle(SESSION.dir, countFiles); }
+    } catch {}
+  }
+  if (!src) {
+    // the files the browser already holds: each photo's JPEG (or RAF) and its paired RAF
+    const dirOf = (p) => (p.includes("/") ? p.slice(0, p.lastIndexOf("/") + 1) : "");
+    const list = old.flatMap((it) => [{ file: it.file, path: it.path }, ...(it.rafFile ? [{ file: it.rafFile, path: dirOf(it.path) + it.raf }] : [])]);
+    beginLoading();
+    src = { name: SESSION.name, list, dir: SESSION.dir };
+  }
+  await dropCache(buildItems(src.list).map((it) => cacheKey(it.path, it.file)));
+  toast(t("re.started"));
+  await startSession(src, { keepDecisions: true });
+}
+
 /* ================================================================ folder input */
 async function openFolder() {
   if (canWrite()) {
@@ -386,6 +427,8 @@ async function openFolder() {
 function bindInput() {
   $("#pickBtn").addEventListener("click", openFolder);
   $("#openBtn").addEventListener("click", openFolder);
+  $("#reanalyseBtn").addEventListener("click", reanalyse);
+  $("#reanalyseSide").addEventListener("click", reanalyse);
   const picker = /** @type {HTMLInputElement} */ ($("#picker"));
   picker.addEventListener("change", () => {
     const files = [...(picker.files || [])]; picker.value = "";
@@ -409,8 +452,9 @@ function bindInput() {
     catch (err) { hideLoader(); app.dataset.state = SESSION.items.length ? "session" : "empty"; toast(t("err.read", { e: err?.message || err })); }
   });
   $("#stopBtn").addEventListener("click", () => { stop(); $("#progress").hidden = true; hooks.onDone({ done: ready().length, total: SESSION.items.length, secs: 0, cached: 0 }); });
-  $("#menuBtn").addEventListener("click", () => { const open = !app.classList.contains("side-open"); app.classList.toggle("side-open", open); $("#menuBtn").setAttribute("aria-expanded", String(open)); if (open) requestAnimationFrame(drawHist); });
-  $("#backdrop").addEventListener("click", () => app.classList.remove("side-open"));
+  $("#menuBtn").addEventListener("click", () => setSide(!app.classList.contains("side-open")));
+  $("#backdrop").addEventListener("click", () => setSide(false));
+  $("#sideClose").addEventListener("click", () => setSide(false));
 }
 
 /* ================================================================ language */
@@ -441,6 +485,7 @@ function bindKeys() {
     const tag = /** @type {HTMLElement} */ (e.target).tagName;
     if ((tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA") && e.key !== "Escape") return;
     const k = e.key.toLowerCase(), mod = e.metaKey || e.ctrlKey;
+    if (k === "escape" && app.classList.contains("side-open")) { setSide(false); return; }
     if (calibState.open) { if (calibKey(e)) e.preventDefault(); return; }
     if (finishState.open) { if (k === "escape") closeFinish(); return; }
     if (cullState.open) { if (!mod && cullKey(e)) e.preventDefault(); return; }

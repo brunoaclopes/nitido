@@ -205,6 +205,20 @@ try {
   sum.errors.length ? fail("photos in error: " + sum.errors.join(", ")) : ok("no photo in error");
   /ready|pronto/i.test(sum.ai) ? ok("models ready") : fail("models: " + sum.ai);
 
+  /* ---------- reanalyse: measured again from scratch, decisions kept ---------- */
+  await evaluate(`import(new URL("src/app/state.js", location.href).href).then(({ SESSION, emit }) => { emit("manual", { items: [SESSION.items.find((i) => i.ready && !i.error)], patch: { flag: "reject" } }); return true; })`);
+  await sleep(600);
+  const flagged = await evaluate(`import(new URL("src/app/state.js", location.href).href).then(({ SESSION }) => SESSION.items.filter((i) => i.manual?.flag === "reject").map((i) => i.path).join())`);
+  await click("#reanalyseBtn");
+  await until(`document.querySelector("#app").dataset.state !== "session" || !document.querySelector("#progress").hidden`, 20000, "reanalysis to start");
+  await until(`document.querySelector("#app").dataset.state === "session" && document.querySelector("#progress").hidden && /\d/.test(document.querySelector("#toast").textContent)`, 30 * 60000, "reanalysis");
+  await sleep(800);
+  const after = await evaluate(`import(new URL("src/app/state.js", location.href).href).then(({ SESSION }) => ({ flagged: SESSION.items.filter((i) => i.manual?.flag === "reject").map((i) => i.path).join(), toast: document.querySelector("#toast").textContent, n: SESSION.items.filter((i) => i.ready).length }))`);
+  flagged && after.flagged === flagged && !/cache/i.test(after.toast) && after.n >= chosen.size
+    ? ok(`reanalyse measured ${after.n} photos again and kept the decision (${flagged})`) : fail("reanalyse: " + JSON.stringify({ flagged, ...after }));
+  await until(`!/loading/i.test([...document.querySelectorAll("#aiStatus span")].map((s) => s.textContent).join(" "))`, 10 * 60000, "CLIP after reanalyse");
+  await sleep(1500);
+
   /* ---------- gallery at several widths ---------- */
   for (const [w, h, mobile] of [[1440, 900], [1100, 800], [820, 1000], [390, 844, true]]) {
     await viewport(w, h, mobile);
@@ -212,6 +226,17 @@ try {
     const o = await overflowReport(".main");
     o.length ? fail(`gallery overflows at ${w}px: ${o.join("; ")}`) : ok(`gallery fits at ${w}px`);
   }
+  // the tuning panel opens as a drawer on a phone and can be closed again
+  await viewport(390, 844, true);
+  await click("#menuBtn"); await sleep(400);
+  await shot("03-drawer-390");
+  const drawerOpen = await evaluate(`document.querySelector("#app").classList.contains("side-open")`);
+  await click("#sideClose"); await sleep(400);
+  const closedByButton = !(await evaluate(`document.querySelector("#app").classList.contains("side-open")`));
+  await click("#menuBtn"); await sleep(300);
+  await evaluate(`(() => { const r = document.querySelector("#side").getBoundingClientRect(); document.elementFromPoint(r.right + 20, 400)?.click(); return true; })()`); await sleep(300);
+  const closedByBackdrop = !(await evaluate(`document.querySelector("#app").classList.contains("side-open")`));
+  drawerOpen && closedByButton && closedByBackdrop ? ok("phone drawer opens and closes (button and backdrop)") : fail(`phone drawer: open ${drawerOpen}, close button ${closedByButton}, backdrop ${closedByBackdrop}`);
   await viewport(1440, 900);
   for (const v of ["review", "reject"]) {
     await click(`#verdictTabs [data-v=${v}]`); await sleep(300);
@@ -261,7 +286,9 @@ try {
     const pos0 = await evaluate(`document.querySelector("#cullPos").textContent`);
     await key("ArrowRight"); await sleep(300); await key("Enter"); await sleep(800);
     const pos1 = await evaluate(`document.querySelector("#cullPos").textContent`);
-    pos0 !== pos1 ? ok(`culling advances (${pos0} → ${pos1})`) : fail(`culling did not advance from ${pos0}`);
+    const single = / 1 of 1$/.test(pos0), closed = await evaluate(`document.querySelector("#cull").hidden`);
+    single ? (closed ? ok("culling finishes after its only group") : fail("culling did not finish after its only group"))
+      : pos0 !== pos1 ? ok(`culling advances (${pos0} → ${pos1})`) : fail(`culling did not advance from ${pos0}`);
     await shot("12-cull-next");
     await key("Escape"); await sleep(300);
   } else console.log("  (culling mode: nothing to cull in this sample)");
