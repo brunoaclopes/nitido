@@ -375,8 +375,10 @@ kbd{font:inherit;font-size:11px;padding:1px 6px;border:1px solid var(--line);bor
   .app{grid-template-rows:auto minmax(0,1fr)}
   .top{flex-wrap:wrap;padding:8px 10px;gap:8px 10px}
   .brand span{display:none}
-  .session{order:2;flex:1}
-  .lang,#exportWrap{order:3}
+  .session{order:2;flex:1 1 120px}
+  .lang{order:3}
+  #cullBtn,#finishBtn,#exportWrap{order:4;flex:1 1 28%}
+  #cullBtn,#finishBtn,#exportBtn{width:100%;justify-content:center}
   .spacer{display:none}
   .progress{order:10;flex-basis:100%;max-width:none}
   .search{order:11;flex-basis:100%;width:auto}
@@ -395,6 +397,8 @@ kbd{font:inherit;font-size:11px;padding:1px 6px;border:1px solid var(--line);bor
   #cullBtn kbd{display:none}
   .cull-head{flex-wrap:wrap;gap:6px 10px}
   .cull-bar{order:5;flex-basis:100%;max-width:none}
+  #cullDone{display:none}
+  #cullClose{margin-left:auto}
   .cull-actions .spacer{display:none}
   .cull-actions [data-a="prev"],.cull-actions [data-a="next"]{flex:1}
   .cull-actions [data-a="keepThis"]{flex-basis:100%;justify-content:center;order:-1}

@@ -44,8 +44,9 @@ mkdirSync(SHOTS, { recursive: true });
 console.log(`${chosen.size} photos (${files.length} files) from ${PHOTOS}`);
 
 /* ---------- server and browser ---------- */
-const port = 4300 + Math.floor(Math.random() * 500);
-const server = spawn(process.execPath, [join(ROOT, "server.mjs"), "--port", String(port)], { stdio: "ignore" });
+// --url tests a deployed copy (e.g. GitHub Pages) instead of a local server
+const port = 4300 + Math.floor(Math.random() * 500), BASE = (opt("url") || `http://127.0.0.1:${port}/`).replace(/\/?$/, "/");
+const server = opt("url") ? { kill() {} } : spawn(process.execPath, [join(ROOT, "server.mjs"), "--port", String(port)], { stdio: "ignore" });
 const profile = mkdtempSync(join(tmpdir(), "nitido-chrome-"));
 const chrome = spawn(CHROME, [
   flag("headed") ? "" : "--headless=new", "--remote-debugging-port=0", `--user-data-dir=${profile}`,
@@ -147,7 +148,7 @@ const ok = (msg) => console.log("  ✓ " + msg);
 
 try {
   await viewport(1440, 900);
-  await page("Page.navigate", { url: `http://127.0.0.1:${port}/` });
+  await page("Page.navigate", { url: BASE });
   await until(`document.readyState === "complete" && !!document.querySelector("#picker")`, 20000, "page load");
   await evaluate(`localStorage.setItem("nitido-v3", JSON.stringify({ lang: "en" })), location.reload(), true`).catch(() => {});
   await until(`document.readyState === "complete" && document.querySelector("[data-lang=en]")?.getAttribute("aria-pressed") === "true"`, 20000, "English UI");
@@ -180,8 +181,8 @@ try {
   console.log(`groups: ${sum.groups.join(" | ") || "none"}`);
   if (opt("dump")) {
     // per-photo measurements, for calibrating the defaults in src/core/scoring.js
-    const rows = await evaluate(`import("/src/app/state.js").then(({ SESSION }) => SESSION.items.map((it) => ({
-      name: it.name, verdict: it.verdict, reasons: it.ev?.reasons, coarse: it.coarse, rel: it.ev?.rel, a: it.ev?.target?.a, tags: it.ev?.tags, score: it.ev && Math.round(it.ev.score),
+    const rows = await evaluate(`import(new URL("src/app/state.js", location.href).href).then(({ SESSION }) => SESSION.items.map((it) => ({
+      name: it.name, verdict: it.verdict, reasons: it.ev?.reasons, coarse: it.coarse, rel: it.ev?.rel, a: it.ev?.target?.a, objects: (it.objects || []).map((o) => o.label), tags: it.ev?.tags, score: it.ev && Math.round(it.ev.score),
       s: it.ev?.s, kind: it.ev?.kind, best: it.best?.s, p: it.ev && +it.ev.p.toFixed(2), af: it.af, afMode: it.meta?.afMode, focusMode: it.meta?.focusMode,
       warn: { blur: it.meta?.blurWarning, focus: it.meta?.focusWarning, exposure: it.meta?.exposureWarning },
       faces: (it.faces || []).map((f) => ({ box: f.box.map(Math.round), blinkL: +f.blinkL.toFixed(2), blinkR: +f.blinkR.toFixed(2), smile: +f.smile.toFixed(2), squint: +(f.squint ?? 0).toFixed(2), yaw: +f.yaw.toFixed(2) })),
@@ -264,7 +265,8 @@ try {
     const res = await evaluate(`document.querySelector("#calibBody").innerText`);
     n >= 6 ? ok(`calibration asked ${n} photos → ${res.split("\n")[0]}`) : fail(`calibration asked only ${n}`);
     await evaluate(`document.querySelector("#calibBody [data-a='close']")?.click(), true`);
-  } else fail("calibration did not open");
+  } else if (chosen.size >= 12) fail("calibration did not open");
+  else console.log("  (calibration: too few photos in this sample)");
 
   /* ---------- finish ---------- */
   await click("#finishBtn"); await sleep(600);
@@ -275,7 +277,7 @@ try {
   await evaluate(`document.querySelector("#finish [data-a='close']").click(), true`);
   // the real copy and move code, on the browser's private file system (same API as a real folder)
   const fs = await evaluate(`(async () => {
-    const { plan, execute } = await import("/src/app/organize.js");
+    const { plan, execute } = await import(new URL("src/app/organize.js", location.href).href);
     const root = await navigator.storage.getDirectory();
     for await (const [n] of root.entries()) await root.removeEntry(n, { recursive: true });
     const src = await root.getDirectoryHandle("shoot", { create: true }), dest = await root.getDirectoryHandle("nas", { create: true });

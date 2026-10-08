@@ -1,202 +1,176 @@
+<div align="center">
+
+<img src="icon.svg" width="72" alt="">
+
 # Nítido
 
-Triagem de fotos no browser, afinada para Fujifilm. Mede o foco onde importa (olhos, ponto de AF, sujeito), deteta olhos fechados, tremido e foco falhado, agrupa fotos parecidas, escolhe a melhor de cada grupo e exporta XMP para o Lightroom. Nenhuma foto sai do teu computador.
+**Photo culling in the browser, tuned for Fujifilm.**<br>
+Focus measured where it matters, similar shots grouped, the best one picked,<br>
+and the keepers sorted onto your NAS. No photo leaves your computer.
 
-*English below.*
+[![Open the app](https://img.shields.io/badge/Open_the_app-5fd394?style=for-the-badge&logoColor=111)](https://brunoaclopes.github.io/nitido/)
 
-## Arrancar
+[![CI](https://github.com/brunoaclopes/nitido/actions/workflows/ci.yml/badge.svg)](https://github.com/brunoaclopes/nitido/actions/workflows/ci.yml)
+[![Pages](https://github.com/brunoaclopes/nitido/actions/workflows/pages.yml/badge.svg)](https://github.com/brunoaclopes/nitido/actions/workflows/pages.yml)
+[![MIT](https://img.shields.io/badge/licence-MIT-3a3a3e)](LICENSE)
+![No dependencies](https://img.shields.io/badge/dependencies-0-3a3a3e)
 
-Precisas de [Node.js](https://nodejs.org) 18 ou mais recente e de um Chrome, Edge, Firefox ou Safari recente.
+**English** · [Português](#português)
 
-```sh
-npm start
-```
+<img src="docs/gallery.webp" alt="Gallery: a shoot grouped into similar shots, each photo with its verdict and measured blur, the blur histogram in the side panel" width="100%">
 
-Abre o browser em `http://127.0.0.1:4173`. Não há dependências para instalar. Larga a pasta da sessão na janela (JPEG e RAF juntos, como saem do cartão).
+</div>
 
-- **Chrome e Edge** permitem gravar os XMP diretamente na pasta. Nos outros browsers a exportação descarrega um ZIP.
-- **Primeira análise**: os modelos de IA (~100 MB) descarregam-se uma vez e ficam em cache no browser.
-- **Reabrir a mesma pasta** é imediato: os resultados e as tuas decisões ficam guardados localmente.
+## What it does
 
-### Sem internet
-
-```sh
-npm run models   # descarrega os modelos para ./models (uma vez)
-npm start
-```
-
-As bibliotecas de IA continuam a vir do CDN na primeira utilização e ficam depois em cache no browser.
-
-## Como avalia cada foto
-
-1. **Descodifica** o JPEG (ou a pré-visualização embutida no RAF, se não houver JPEG) num worker, em faixas, sem nunca criar um canvas com o tamanho da foto.
-2. **Deteta rostos e sujeitos** com MediaPipe: probabilidade de piscar de cada olho, sorriso, orientação do rosto, e objetos como carros, animais e pessoas. Pessoas pequenas são revistas à resolução total.
-3. **Escolhe onde medir**, por esta ordem: olhos do rosto principal, rosto, olhos e rosto detetados pela câmara, ponto de AF, sujeito detetado pela câmara, sujeito detetado pela app e, por fim, a zona mais nítida da foto.
-4. **Mede o desfoque a 100%**, em píxeis de largura de aresta (método de re-blur de Zhuo & Sim). Não depende do contraste nem da quantidade de textura, por isso uma pintura lisa com um friso nítido mede bem. Também mede a imagem inteira (mapa de 48 zonas), o ruído e a direção do desfoque (tremido).
-5. **CLIP** (opcional) dá a semelhança entre fotos para agrupar, uma pontuação de qualidade e uma segunda opinião sobre a nitidez do sujeito.
-6. **Veredicto**: Manter, Rever ou Rejeitar, com motivos (desfocada, tremida, foco falhado, olhos fechados, a piscar, menos nítida que o grupo, exposição, sem detalhe). O fundo desfocado intencional é reconhecido e não penaliza.
-7. **Pontuação 0–100** para escolher a melhor do grupo: nitidez, olhos abertos, expressão, exposição, qualidade, ruído e comparação com o resto do grupo.
-
-### Detalhes Fujifilm
-
-- O `FocusPixel` está no referencial de píxeis do próprio JPEG (não do sensor). Isto foi confirmado em 51 ficheiros de exemplo, incluindo X-H2, pelo projeto [riffle](https://github.com/minodisk/riffle).
-- Em foco manual a câmara continua a escrever um ponto de AF antigo, por isso é ignorado.
-- Os rostos, olhos e sujeitos detetados pela câmara também são usados.
-- JPEG M/S e pré-visualizações de RAF são medidos à escala da resolução total do modelo.
-
-## Agrupar
-
-Os grupos formam-se assim:
-
-- A sessão é dividida em **cenas** sempre que há pausas longas.
-- Dentro de cada cena, as fotos parecidas juntam-se por agrupamento hierárquico (ligação média). A semelhança combina o conteúdo da imagem (CLIP), a composição e a cor (hash perceptual) e a proximidade no tempo.
-
-Podes também:
-
-- Agrupar por rajadas ou por cenas em vez de por semelhança.
-- Dar nome aos grupos. Os nomes automáticos vêm do conteúdo, por exemplo "Carro · 14:23".
-- Ordenar os grupos por hora, tamanho, pontuação ou nome. Os grupos aparecem na linha do tempo entre as fotos soltas.
-- Tirar uma foto do grupo, dividir um grupo, juntar grupos ou juntar uma seleção num grupo.
-
-## Triar (T)
-
-Um grupo de cada vez, em ecrã inteiro. A melhor sugerida aparece grande, as outras fotos do grupo numa fila por baixo, e cada pessoa tem uma linha com o rosto em todas as fotos da rajada, para veres logo em qual estão todos de olhos abertos. **Enter** mantém a foto mostrada e rejeita as outras do grupo; **P** e **X** decidem só esta; **← →** mudam de foto, **↑ ↓** de grupo; **Z** dá zoom a 100% no foco. Também entram as fotos soltas que estão por rever.
-
-## Calibrar ao teu olho
-
-No painel da visão geral, **Calibrar** mostra 12 recortes a 100% à volta do limite atual e pergunta "nítida o suficiente?". O limite que melhor explica as tuas respostas passa a ser o limite de nitidez.
-
-## Aprender contigo
-
-Cada foto que manténs ou rejeitas à mão (P/X) ensina o modelo pessoal, em todas as sessões. Rejeitar "o resto do grupo" não conta, porque essas fotos são repetidas, não más. O modelo é uma regressão logística sobre os mesmos sinais. Com 30 decisões e 85% de acerto liga-se sozinho, e podes desligá-lo ou fazê-lo esquecer nos Modelos de IA.
-
-## Concluir: arrumar no disco, sem Lightroom
-
-**Concluir** mostra quantas fotos vão para cada lado antes de mexer em alguma coisa:
-
-- **Manter** (e, se quiseres, as que estão por rever): copiadas com o RAF e o XMP para uma pasta de destino, por exemplo a pasta do NAS. Podem ir para uma pasta com o nome da sessão, por data (`2026/2026-09-15`) ou diretamente. Cada cópia é verificada pelo tamanho, e um ficheiro igual que já lá esteja é saltado, por isso podes correr outra vez se for interrompido. Os originais ficam onde estão.
-- **Rejeitar**: postas de parte em `_rejeitadas` dentro da pasta da sessão (por omissão), apagadas de vez (com confirmação; o browser não consegue usar o lixo) ou deixadas. Depois de as veres, "Esvaziar" apaga a pasta `_rejeitadas`.
-
-Isto funciona no Chrome e no Edge quando a pasta é aberta com *Escolher pasta* ou arrastada. No Safari e no Firefox, Concluir descarrega um script (`.sh` ou `.ps1`) que faz o mesmo e corre dentro da pasta da sessão.
-
-## Instalar e usar sem internet
-
-No Chrome ou no Edge, instala o Nítido a partir da barra de endereço. Depois de uma primeira análise com internet (ou de `npm run models`), funciona offline.
-
-## Exportar
-
-- **XMP**: estrelas, etiqueta de cor, escolha/rejeição e palavras-chave (`Nítido|…`). Os XMP existentes são editados no lugar, mantendo as revelações do Lightroom. No Lightroom Classic, usa *Metadados › Ler metadados do ficheiro* depois de importar.
-- **CSV** e **JSON** com todas as métricas.
-- **Scripts** (`.sh` e `.ps1`) que movem as rejeitadas (JPEG, RAF e XMP) para `_rejeitadas`.
-
-## Atalhos
-
-| Tecla | Ação |
+| | |
 | --- | --- |
-| ← → | Foto anterior ou seguinte |
-| ↑ ↓ | Grupo anterior ou seguinte (no visualizador) |
-| P / X / U | Manter / rejeitar / automático |
-| Shift+X | Manter esta e rejeitar o resto do grupo |
-| 1–5, 0 | Estrelas, limpar |
-| 6–9 | Etiqueta vermelha, amarela, verde, azul |
-| Z | Zoom 100% no foco |
-| M / F / B | Mapa de nitidez / rostos / zona de foco |
-| C | Comparar o grupo ou a seleção (até 4, zoom sincronizado) |
-| T | Modo de triagem |
-| Enter (triagem) | Manter esta e rejeitar as outras do grupo |
-| ? | Ajuda |
+| <img src="docs/loupe.webp" alt="Loupe with the sharpness map over a landscape"> | **Judges every photo at 100%.** Blur is measured as edge width in pixels on the eyes, the AF point or the subject, then over the whole frame as a sharpness map. Closed eyes, motion blur, missed focus and blown highlights each get a plain-language reason. |
+| <img src="docs/cull.webp" alt="Culling mode showing one group, the suggested best large and the other frames below"> | **Culling mode, one group at a time.** The suggested best is shown large and the rest of the burst sits in a strip. With people in the frame, each face is lined up across the burst, so the frame where everyone's eyes are open stands out. <kbd>Enter</kbd> keeps it and rejects the rest. |
+| <img src="docs/finish.webp" alt="Finish dialog: keepers copied to a NAS folder, rejects set aside"> | **Finish, without Lightroom.** Keepers are copied with their RAF to your NAS or archive, each copy checked; rejects are set aside in a `_rejects` folder or deleted. You see how many photos go where before anything happens. |
+| <img src="docs/calibrate.webp" alt="Calibration: a 100% crop and the question 'Sharp enough?'"> | **Calibrated to your eye.** Twelve crops at 100%, "sharp enough?" for each, and the sharpness limit fits your answers. A personal model also learns from every keep or reject you make by hand, across shoots. |
 
-## Publicar num servidor
+<div align="center">
+<img src="docs/phone-gallery.webp" width="30%" alt="The gallery on a phone">&nbsp;&nbsp;<img src="docs/phone-cull.webp" width="30%" alt="Culling mode on a phone">
+<br><sub>Works on a phone too, and installs as an app that runs offline.</sub>
+</div>
 
-É um site estático: a análise corre sempre no browser de quem o usa.
+## Use it
 
-- **Docker**: `docker build -t nitido . && docker run -p 8080:80 nitido`
-- **Qualquer alojamento estático** (Nginx, Cloudflare Pages, Netlify, Vercel, S3): publica `index.html`, `styles/`, `src/` e, se quiseres, `models/`. É necessário HTTPS (ou localhost).
+**Online:** open **[brunoaclopes.github.io/nitido](https://brunoaclopes.github.io/nitido/)** in Chrome or Edge and choose your shoot folder (JPEG and RAF together, straight off the card). Everything runs in your browser; the AI models (~100 MB) download once.
 
-## Estrutura
-
-```
-src/core      lógica pura e testada: EXIF/Fuji, geometria, métricas, pontuação, grupos, XMP, ZIP
-src/workers   descodificação e medição (pixel.worker), CLIP (clip.worker)
-src/ml        MediaPipe (rostos, objetos), cliente CLIP, configuração dos modelos
-src/app       estado, pipeline, cache IndexedDB, exportação
-src/ui        galeria, visualizador, comparação, histograma
-src/i18n      português e inglês
-```
-
-`npm test` corre os testes unitários. `npm run test:smoke` arranca a app completa com um DOM simulado. `npm run test:browser -- --photos ~/pasta-de-fotos` corre a app no Chrome real (headless) com os modelos verdadeiros, guarda capturas de ecrã em vários tamanhos e falha com qualquer erro na página (Node ≥ 22; `--only DSCF0001,DSCF0002` abre essas fotos na lupa, `--dump medidas.json` grava as medições de cada foto).
-
-## Limitações
-
-- Os limites por omissão foram calibrados com ficheiros da X-H2: fotos nítidas medem 0,7–1,4 px, as visivelmente desfocadas 2 px ou mais. Afina o rigor com o histograma.
-- Uma foto muito desfocada ou tremida com muito grão (Grain Effect) pode medir como nítida, porque o grão é o único detalhe fino que resta. Quando há uma foto parecida tirada segundos antes ou depois, a comparação a escala grosseira apanha a tremida e manda-a para Rever; uma foto isolada assim pode escapar.
-- A deteção de rostos (MediaPipe) é mais fiável em rostos de frente e razoavelmente grandes. Perfis pronunciados não contam como olhos fechados.
-- O CLIP usa a variante quantizada ViT-B/32 em WebAssembly. Em máquinas lentas pode desligá-lo nos Modelos de IA.
-
----
-
-# Nítido (English)
-
-In-browser photo culling, tuned for Fujifilm. It measures focus where it matters (eyes, AF point, subject), detects closed eyes, motion blur and missed focus, groups similar shots, picks the best of each group and exports XMP for Lightroom. No photo leaves your computer.
-
-## Run it
-
-You need [Node.js](https://nodejs.org) 18 or newer and a recent Chrome, Edge, Firefox or Safari.
+**Locally:** with [Node.js](https://nodejs.org) 18 or newer, there is nothing to install:
 
 ```sh
-npm start
+npm start            # opens http://127.0.0.1:4173
+npm run models       # optional: keep the AI models in ./models to work fully offline
 ```
 
-This opens `http://127.0.0.1:4173`. There is nothing to install. Drop your session folder on the window (JPEG and RAF together, straight off the card).
+Reopening a folder is instant: results and your decisions are kept in the browser.
 
-- **Chrome and Edge** can write XMP straight into the folder. Other browsers download a ZIP instead.
-- **First analysis**: the AI models (~100 MB) download once and are then cached by the browser.
-- **Reopening the same folder** is instant: results and your decisions are stored locally.
+## A shoot, start to finish
 
-Offline: run `npm run models` once, then `npm start`.
+1. **Open the folder** with *Choose folder* (or drop it on the window). Each photo gets **Keep**, **Review** or **Reject**, with the reason.
+2. **Cull** with <kbd>T</kbd>: go through the groups and the photos still to review. <kbd>Enter</kbd> keeps the frame shown and rejects the rest; <kbd>P</kbd> / <kbd>X</kbd> decide one photo; <kbd>↑</kbd> <kbd>↓</kbd> change group; <kbd>Z</kbd> zooms to 100%.
+3. **Finish**: pick the NAS folder once (it is remembered) and press Start.
+   - Keepers, and by choice the photos still to review, are copied with their RAF and XMP: into a folder named after the shoot, by capture date (`2026/2026-09-15`) or straight in. Every copy is checked by size; files already there are skipped, so an interrupted run can simply be repeated. Originals stay where they are.
+   - Rejects are set aside in `_rejects` inside the shoot folder (the default), deleted for good after a confirmation (a browser cannot use the bin), or left alone. Once you have looked, *Empty* removes the folder.
+   - Safari and Firefox cannot write to your folders: there, Finish downloads a `.sh` or `.ps1` script that does the same.
 
-## How each photo is judged
+Lightroom is optional: XMP sidecars with stars, colour labels and keywords can still be written next to the photos or the copies.
 
-1. **Decode** the JPEG (or the RAF's embedded preview when there is no JPEG) in a worker, in strips, without ever creating a full-size canvas.
-2. **Detect faces and subjects** with MediaPipe: per-eye blink probability, smile, face orientation, and objects such as cars, animals and people. Small people are checked again at full resolution.
-3. **Choose where to measure**, in this order: the main face's eyes, the face, the camera's own eye and face boxes, the AF point, the camera's subject box, the app's subject box, and finally the sharpest area of the frame.
-4. **Measure blur at 100%** as edge width in pixels (Zhuo & Sim re-blur method). It does not depend on contrast or texture, so smooth car paint with one crisp panel line measures fine. It also measures the whole frame (a 48-zone map), the noise, and the direction of the blur (camera shake).
-5. **CLIP** (optional) gives similarity between shots for grouping, a quality score and a second opinion on subject sharpness.
-6. **Verdict**: Keep, Review or Reject, with reasons (out of focus, motion blur, missed focus, eyes closed, blinking, softer than the group, exposure, no detail). Intentional background blur is recognised and not penalised.
-7. **Score from 0 to 100** to pick the best of each group: sharpness, open eyes, expression, exposure, quality, noise, and comparison with the rest of the group.
+## How a photo is judged
 
-### Fujifilm details
+1. **Decode** the JPEG (or the RAF's embedded preview) in a worker, in horizontal strips, never holding a full-size canvas.
+2. **Find faces and subjects** with MediaPipe: blink probability per eye, smile, head turn, and objects such as cars, animals and people.
+3. **Choose where to measure**, in this order: the main face's eyes, the face, the camera's own eye and face boxes, the AF point, the camera's subject box, the detected subject, and finally the sharpest area of the frame.
+4. **Measure blur at 100%** as edge width in pixels, with the re-blur method of Zhuo & Sim sampled on edge centre lines only. Contrast and texture do not change the reading, so a lone crisp edge on smooth car paint or sky measures as sharp.
+5. **Compare with neighbours**: a frame much softer at a coarse scale than a similar one shot seconds apart is flagged as shaken, which catches shake that film grain hides.
+6. **CLIP** (optional) gives the similarity used for grouping, a quality score and a name for each group ("Sea and beach · 09:31").
+7. **Verdict and score**: Keep, Review or Reject with reasons, and a 0–100 score to pick the best of each group. Intentional background blur is recognised and not penalised; eyes narrowed by a laugh are not counted as closed.
 
-- `FocusPixel` is in the JPEG's own pixel frame, not the sensor's. This was confirmed on 51 sample files, X-H2 included, by the [riffle](https://github.com/minodisk/riffle) project.
-- In manual focus the camera still writes a stale AF point, so it is ignored.
-- The camera's own face, eye and subject boxes are used too.
-- M/S JPEGs and RAF previews are measured on the model's full-resolution scale.
+**Fujifilm details.** `FocusPixel` is read in the JPEG's own pixel frame (confirmed on 51 sample files, X-H2 included, by the [riffle](https://github.com/minodisk/riffle) project) and ignored in manual focus, where the camera writes a stale point. The camera's own face, eye and subject boxes are used too. Default limits were calibrated on X-H2 files: sharp frames read 0.7–1.4 px, visibly soft ones 2 px and up.
 
-## Grouping, learning, export, deployment
+## Keyboard
 
-- **Grouping**:
-  - The session is split into scenes at long pauses.
-  - Within each scene, similar shots are joined by average-linkage clustering on image content (CLIP), composition and colour (perceptual hash), and closeness in time.
-  - You can rename groups, sort them, detach photos, split groups or join them.
-- **Culling mode (T)**: one group at a time, full screen. The suggested best is large, the other frames sit in a strip, and each person gets a row with their face in every frame of the burst. **Enter** keeps the shown frame and rejects the rest of the group; **P**/**X** decide just this one; **← →** change frame, **↑ ↓** change group; **Z** zooms to 100% on focus. Loose photos still to review are included.
-- **Calibrate to your eye**: in the overview panel, 12 crops at 100% around the current limit, "sharp enough?" for each; the limit that best explains the answers becomes the sharpness limit.
-- **Personal model**: every photo you keep or reject by hand (P/X) teaches it, across all shoots. "Reject the rest of the group" does not count: those frames are redundant, not bad. With 30 decisions and 85% agreement it turns itself on; turn it off or make it forget under AI models.
-- **Finish: sort on disk, no Lightroom needed**. It shows how many photos go where before touching anything.
-  - Keepers (and, by choice, the photos still to review) are copied with their RAF and XMP to a destination folder such as a NAS share: into a folder named after the shoot, by capture date (`2026/2026-09-15`) or straight in. Each copy is checked by size, and identical files already there are skipped, so an interrupted run can simply be repeated. Originals stay where they are.
-  - Rejects are set aside in `_rejects` inside the shoot folder (the default), deleted for good (with confirmation; a browser cannot use the bin) or left alone. "Empty" removes the `_rejects` folder once you have looked.
-  - This works in Chrome and Edge when the folder was opened with *Choose folder* or dropped. In Safari and Firefox, Finish downloads a `.sh` or `.ps1` script that does the same, to run inside the shoot folder.
-- **Install and offline**: install it from the address bar in Chrome or Edge. After one analysis online (or `npm run models`), it works offline.
-- **Export**:
-  - XMP with stars, colour label, pick/reject and keywords. Existing XMP files are edited in place, so Lightroom develop settings survive.
-  - CSV and JSON reports.
-  - Scripts that move rejects into `_rejects`.
-- **Deploy**: it is a static site, and analysis always runs in the visitor's browser. Use `docker build -t nitido . && docker run -p 8080:80 nitido`, or upload `index.html`, `styles/`, `src/` (and optionally `models/`) to any static host with HTTPS.
+| Key | Action |
+| --- | --- |
+| <kbd>T</kbd> | Culling mode |
+| <kbd>Enter</kbd> (culling) | Keep this frame, reject the rest of the group |
+| <kbd>←</kbd> <kbd>→</kbd> · <kbd>↑</kbd> <kbd>↓</kbd> | Previous / next photo · group |
+| <kbd>P</kbd> <kbd>X</kbd> <kbd>U</kbd> | Keep · reject · back to automatic |
+| <kbd>Shift</kbd>+<kbd>X</kbd> | Keep this one and reject the rest of the group |
+| <kbd>1</kbd>–<kbd>5</kbd>, <kbd>0</kbd> · <kbd>6</kbd>–<kbd>9</kbd> | Stars, clear · red, yellow, green, blue label |
+| <kbd>Z</kbd> · <kbd>M</kbd> <kbd>F</kbd> <kbd>B</kbd> | 100% on focus · sharpness map, faces, focus area |
+| <kbd>C</kbd> | Compare the group or the selection, with synchronised zoom |
+| <kbd>?</kbd> | All shortcuts |
 
 ## Limitations
 
-- Default limits were calibrated on X-H2 files: sharp frames measure 0.7–1.4 px, visibly soft ones 2 px and up. Tune the strictness with the histogram.
-- A badly blurred or shaken frame with heavy grain (Grain Effect) can measure as sharp, because the grain is the only fine detail left. When a similar frame was shot seconds before or after, the coarse-scale comparison catches the shake and sends it to Review; a lone frame like that can slip through.
-
-Tests: `npm test` (unit), `npm run test:smoke` (whole app on a stub DOM), `npm run test:browser -- --photos ~/some-shoot` (real headless Chrome with the real models; screenshots at several widths, fails on any page error; Node ≥ 22).
+- A badly blurred or shaken frame with heavy grain (Grain Effect) can measure as sharp, because the grain is the only fine detail left. A similar frame shot seconds apart catches it; a lone frame like that can slip through.
 - Face detection is most reliable on frontal, reasonably large faces. Strong profiles are not counted as closed eyes.
-- CLIP is the quantised ViT-B/32 running in WebAssembly. You can turn it off under AI models on slow machines.
+- CLIP is the quantised ViT-B/32 in WebAssembly; on slow machines it can be turned off under *AI models*.
+
+## For developers
+
+Plain ES modules, no build step, no dependencies. `src/core` holds the pure, tested logic (EXIF and Fuji MakerNote, geometry, blur metrics, scoring, grouping, sorting, XMP, ZIP); `src/workers` the pixel and CLIP workers; `src/ml` the MediaPipe and CLIP clients; `src/app` state, pipeline and storage; `src/ui` the views; `src/i18n` Portuguese and English.
+
+```sh
+npm test                                        # unit tests
+npm run test:smoke                              # the whole app on a stub DOM
+npm run test:browser -- --photos ~/some-shoot   # real headless Chrome and models, screenshots, any page error fails (Node ≥ 22)
+npm run test:browser -- --photos ~/some-shoot --url https://brunoaclopes.github.io/nitido/   # the published site
+node scripts/readme-shots.mjs --photos ~/some-shoot --names DSCF0001,…           # regenerate these screenshots
+```
+
+It is a static site: the push to `main` deploys it to GitHub Pages. To host it elsewhere, `docker build -t nitido . && docker run -p 8080:80 nitido`, or upload `index.html`, `sw.js`, `manifest.webmanifest`, `icon.svg`, `styles/` and `src/` to any HTTPS host.
+
+---
+
+## Português
+
+**Triagem de fotos no browser, afinada para Fujifilm.** Mede o foco onde importa, agrupa as fotos parecidas, escolhe a melhor de cada grupo e arruma as que ficam no teu NAS. Nenhuma foto sai do teu computador.
+
+### Usar
+
+**Online:** abre **[brunoaclopes.github.io/nitido](https://brunoaclopes.github.io/nitido/)** no Chrome ou no Edge e escolhe a pasta da sessão (JPEG e RAF juntos, como saem do cartão). Tudo corre no teu browser; os modelos de IA (~100 MB) descarregam-se uma vez.
+
+**No teu computador:** com o [Node.js](https://nodejs.org) 18 ou mais recente, não há nada para instalar:
+
+```sh
+npm start            # abre http://127.0.0.1:4173
+npm run models       # opcional: guarda os modelos em ./models para funcionar totalmente offline
+```
+
+Reabrir uma pasta é imediato: os resultados e as tuas decisões ficam guardados no browser.
+
+### Uma sessão, do início ao fim
+
+1. **Abre a pasta** com *Escolher pasta* (ou arrasta-a para a janela). Cada foto fica **Manter**, **Rever** ou **Rejeitar**, com o motivo.
+2. **Tria** com <kbd>T</kbd>: um grupo de cada vez, mais as fotos por rever. A melhor sugerida aparece grande e as outras numa fila; com pessoas, cada rosto aparece em todas as fotos da rajada, para veres logo onde estão todos de olhos abertos. <kbd>Enter</kbd> mantém a foto mostrada e rejeita as outras; <kbd>P</kbd> / <kbd>X</kbd> decidem uma foto; <kbd>↑</kbd> <kbd>↓</kbd> mudam de grupo; <kbd>Z</kbd> dá zoom a 100%.
+3. **Conclui**: escolhe a pasta do NAS uma vez (fica lembrada) e carrega em Começar.
+   - As fotos a manter, e se quiseres as que estão por rever, são copiadas com o RAF e o XMP: para uma pasta com o nome da sessão, por data (`2026/2026-09-15`) ou diretamente. Cada cópia é verificada pelo tamanho e os ficheiros que já lá estão são saltados, por isso se for interrompido basta correr outra vez. Os originais ficam onde estão.
+   - As rejeitadas ficam de parte em `_rejeitadas` dentro da pasta da sessão (por omissão), são apagadas de vez depois de confirmares (o browser não consegue usar o lixo) ou ficam onde estão. Depois de as veres, *Esvaziar* apaga a pasta.
+   - O Safari e o Firefox não conseguem escrever nas tuas pastas: aí, Concluir descarrega um script `.sh` ou `.ps1` que faz o mesmo.
+
+O Lightroom é opcional: os XMP com estrelas, etiquetas de cor e palavras-chave podem continuar a ser escritos ao lado das fotos ou das cópias.
+
+### Ajustar ao teu gosto
+
+- **Calibrar ao teu olho**: no painel da visão geral, 12 recortes a 100% e "nítida o suficiente?" para cada um; o limite de nitidez ajusta-se às tuas respostas.
+- **Modelo pessoal**: aprende com cada foto que manténs ou rejeitas à mão, em todas as sessões. Rejeitar "o resto do grupo" não conta, porque essas fotos são repetidas, não más. Com 30 decisões e 85% de acerto liga-se sozinho; desliga-o ou fá-lo esquecer nos *Modelos de IA*.
+- **Instalar**: no Chrome ou no Edge, instala-o a partir da barra de endereço; depois da primeira análise funciona sem internet.
+
+### Como avalia cada foto
+
+1. **Descodifica** o JPEG (ou a pré-visualização do RAF) num worker, em faixas, sem nunca criar um canvas do tamanho da foto.
+2. **Encontra rostos e sujeitos** com MediaPipe: probabilidade de piscar de cada olho, sorriso, orientação do rosto, e objetos como carros, animais e pessoas.
+3. **Escolhe onde medir**, por esta ordem: olhos do rosto principal, rosto, olhos e rosto detetados pela câmara, ponto de AF, sujeito da câmara, sujeito detetado e, por fim, a zona mais nítida.
+4. **Mede o desfoque a 100%** em píxeis de largura de aresta (método de re-blur de Zhuo & Sim, medido só no centro das arestas). Não depende do contraste nem da textura, por isso uma aresta nítida numa pintura lisa ou no céu mede como nítida.
+5. **Compara com as vizinhas**: uma foto muito menos nítida a escala grosseira do que uma parecida tirada segundos antes ou depois é marcada como tremida; isto apanha o tremido que o grão esconde.
+6. **CLIP** (opcional) dá a semelhança para agrupar, uma pontuação de qualidade e um nome para cada grupo ("Mar e praia · 09:31").
+7. **Veredicto e pontuação**: Manter, Rever ou Rejeitar com motivos, e uma pontuação de 0 a 100 para escolher a melhor do grupo. O fundo desfocado intencional não penaliza, e olhos semicerrados a rir não contam como fechados.
+
+**Detalhes Fujifilm.** O `FocusPixel` é lido no referencial do próprio JPEG (confirmado em 51 ficheiros, X-H2 incluída, pelo projeto [riffle](https://github.com/minodisk/riffle)) e ignorado em foco manual, onde a câmara escreve um ponto antigo. Os rostos, olhos e sujeitos detetados pela câmara também são usados. Os limites por omissão foram calibrados com ficheiros da X-H2: fotos nítidas medem 0,7–1,4 px, as visivelmente desfocadas 2 px ou mais.
+
+### Atalhos
+
+| Tecla | Ação |
+| --- | --- |
+| <kbd>T</kbd> | Modo de triagem |
+| <kbd>Enter</kbd> (triagem) | Manter esta e rejeitar as outras do grupo |
+| <kbd>←</kbd> <kbd>→</kbd> · <kbd>↑</kbd> <kbd>↓</kbd> | Foto · grupo anterior ou seguinte |
+| <kbd>P</kbd> <kbd>X</kbd> <kbd>U</kbd> | Manter · rejeitar · automático |
+| <kbd>Shift</kbd>+<kbd>X</kbd> | Manter esta e rejeitar o resto do grupo |
+| <kbd>1</kbd>–<kbd>5</kbd>, <kbd>0</kbd> · <kbd>6</kbd>–<kbd>9</kbd> | Estrelas, limpar · etiqueta vermelha, amarela, verde, azul |
+| <kbd>Z</kbd> · <kbd>M</kbd> <kbd>F</kbd> <kbd>B</kbd> | 100% no foco · mapa de nitidez, rostos, zona de foco |
+| <kbd>C</kbd> | Comparar o grupo ou a seleção, com zoom sincronizado |
+| <kbd>?</kbd> | Todos os atalhos |
+
+### Limitações
+
+- Uma foto muito desfocada ou tremida com muito grão (Grain Effect) pode medir como nítida, porque o grão é o único detalhe fino que resta. Uma foto parecida tirada segundos antes ou depois apanha-a; uma foto isolada assim pode escapar.
+- A deteção de rostos é mais fiável em rostos de frente e razoavelmente grandes. Perfis pronunciados não contam como olhos fechados.
+- O CLIP é a variante quantizada ViT-B/32 em WebAssembly; em máquinas lentas pode ser desligado nos *Modelos de IA*.
+
+Para programadores, os testes e o alojamento estão descritos [em inglês, acima](#for-developers).
