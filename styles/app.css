@@ -402,6 +402,8 @@ input[type=range].density{width:90px;flex:none}
 .fin-progress span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:1.4}
 .fin-actions{margin:0}
 .touch-help{display:none}
+.app-version{margin:14px 0 0;text-align:right}
+.app-version a{color:inherit}
 .help-body h3{font-size:13px;margin:4px 0 8px;color:var(--ink-2)}
 @media (pointer:coarse){.touch-help{display:block}}
 .fin-steps{margin:0;padding-left:20px;display:grid;gap:8px;color:var(--ink-2)}

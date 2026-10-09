@@ -15,6 +15,7 @@ import { extname, join, normalize, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
 import { exec } from "node:child_process";
+import { VERSION } from "./src/version.js";
 
 const root = fileURLToPath(new URL(".", import.meta.url));
 const args = process.argv.slice(2);
@@ -142,7 +143,7 @@ const server = createServer(async (req, res) => {
     if (!path || path.endsWith(sep)) path = join(path, "index.html");
     if (path === "config.js") {
       const l = await local();
-      const cfg = { sync: !!dataDir, defaults: defaults(), localTiers: l.tiers, localOnly: l.only };
+      const cfg = { version: VERSION, sync: !!dataDir, defaults: defaults(), localTiers: l.tiers, localOnly: l.only };
       res.writeHead(200, { "content-type": "text/javascript; charset=utf-8", "cache-control": "no-cache" });
       return res.end(`// Settings from the server that hosts this copy of Nítido.\nwindow.NITIDO = ${JSON.stringify(cfg)};\n`);
     }
@@ -172,7 +173,7 @@ server.on("error", (e) => {
 server.listen(port, host, async () => {
   const url = `http://${host === "0.0.0.0" ? "localhost" : host}:${port}/`;
   const l = await local();
-  console.log(`\n  Nítido is running at ${url}`);
+  console.log(`\n  Nítido ${VERSION} is running at ${url}`);
   let writable = true;
   if (dataDir) try { await mkdir(join(dataDir, "profiles"), { recursive: true }); await writeFile(join(dataDir, ".write-test"), ""); } catch { writable = false; }
   console.log(`  profiles: ${dataDir ? "kept in " + dataDir : "off (add --data <folder> to keep them on this server)"}`);

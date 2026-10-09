@@ -14,6 +14,7 @@ the keepers copied to your NAS. All of it computed on your machine: no server, n
 ![Runs in your browser](https://img.shields.io/badge/runs-100%25_in_your_browser-5fd394)
 ![No uploads](https://img.shields.io/badge/uploads-none-5fd394)
 ![Works offline](https://img.shields.io/badge/works-offline-5fd394)
+[![Release](https://img.shields.io/github/v/release/brunoaclopes/nitido?color=5fd394)](https://github.com/brunoaclopes/nitido/releases)
 [![CI](https://github.com/brunoaclopes/nitido/actions/workflows/ci.yml/badge.svg)](https://github.com/brunoaclopes/nitido/actions/workflows/ci.yml)
 [![MIT](https://img.shields.io/badge/licence-MIT-3a3a3e)](LICENSE)
 ![No dependencies](https://img.shields.io/badge/dependencies-0-3a3a3e)
@@ -177,7 +178,12 @@ On a home server or a NAS, one container holds the app, every AI model and the l
 docker run -d --name nitido -p 8080:8080 -v ./data:/data ghcr.io/brunoaclopes/nitido
 ```
 
-Or use `docker compose up -d` with the [docker-compose.yml](docker-compose.yml) in this repository. The image is built for amd64 and arm64 (Synology, Raspberry Pi and the like). Then serve it over [HTTPS](#https-on-your-network).
+Or use `docker compose up -d` with the [docker-compose.yml](docker-compose.yml) in this repository.
+
+**Versions.**
+- `latest` is the newest [release](https://github.com/brunoaclopes/nitido/releases). A version tag such as `1.2.0` (or `1.2`) stays put until you change it, and `main` follows every change.
+- To update, run `docker compose pull && docker compose up -d`. Profiles in `/data` are kept.
+- The version you run is shown in the app's **?** help, and in the server's first log line. The image is built for amd64 and arm64 (Synology, Raspberry Pi and the like). Then serve it over [HTTPS](#https-on-your-network).
 
 What you get over the public site:
 - **Your profile follows you.** Your settings, your personal model and each shoot's decisions are kept on the server, as JSON files in `/data`.
@@ -386,8 +392,14 @@ npm run test:browser -- --photos ~/some-shoot --url https://brunoaclopes.github.
 node scripts/readme-shots.mjs --photos ~/some-shoot --names DSCF0001,…           # regenerate these screenshots
 ```
 
+**Releasing.** The version lives in `package.json`, and `npm version` copies it into `src/version.js`. To make a release:
+1. Add a section for the new version to [CHANGELOG.md](CHANGELOG.md).
+2. Run `npm version minor` (or `patch`, `major`), then `git push --follow-tags`.
+
+The tag publishes the [release](https://github.com/brunoaclopes/nitido/releases), with its changelog notes and the app as a zip for any static host. It also publishes the Docker image under that version and as `latest`. The release workflow refuses to run if the tag, `package.json`, `src/version.js` and the changelog disagree.
+
 **Hosting.** The app is a static site, and a push to `main` deploys it to GitHub Pages and publishes the Docker image.
-- **Any static host:** upload `index.html`, `config.js`, `sw.js`, `manifest.webmanifest`, `icon.svg`, `styles/`, `fonts/` and `src/`, over HTTPS.
+- **Any static host:** unzip a [release](https://github.com/brunoaclopes/nitido/releases)'s `nitido-<version>.zip` and serve the folder over HTTPS.
 - **Your own server:** [`server.mjs`](server.mjs) adds the profiles, the defaults and the stricter policy (see [Run it on your server](#run-it-on-your-server)). It has no dependencies, and its tests are in `tests/server.test.mjs`.
 
 ---

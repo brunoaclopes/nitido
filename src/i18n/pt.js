@@ -1,4 +1,5 @@
 export default {
+  "help.releases": "Novidades",
   "help.touch": "<h3>Num ecrã tátil</h3><table><tr><td>Toca numa foto</td><td>Abre-a na lupa</td></tr><tr><td>Toca no círculo de uma foto</td><td>Seleciona-a. A barra que aparece mantém, rejeita, compara ou agrupa a seleção</td></tr><tr><td>Desliza para a esquerda ou direita</td><td>Foto seguinte ou anterior, na lupa e na triagem</td></tr><tr><td>Toca na foto na lupa</td><td>100% onde tocaste; toca outra vez para a foto inteira</td></tr><tr><td>Triar</td><td>Um grupo de cada vez: Manter esta, rejeitar as outras</td></tr><tr><td>☰</td><td>O painel de afinação: exigência, modelos de IA, o teu perfil</td></tr></table><h3>Com teclado</h3>",
   "fin.handheldLead": "{keep} para manter, {reject} para rejeitar. O browser de um telemóvel ou tablet não consegue copiar fotos para outras pastas, por isso os ficheiros são arrumados a partir de um computador.",
   "fin.handheld1": "Guarda as tuas decisões num ficheiro (em baixo) e põe-no onde o computador lhe chegue: AirDrop, iCloud Drive, uma pasta partilhada.",

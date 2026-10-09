@@ -1,4 +1,5 @@
 export default {
+  "help.releases": "What's new",
   "help.touch": "<h3>On a touch screen</h3><table><tr><td>Tap a photo</td><td>Open it in the loupe</td></tr><tr><td>Tap the circle on a photo</td><td>Select it. The bar that appears keeps, rejects, compares or groups the selection</td></tr><tr><td>Swipe left or right</td><td>Next or previous photo, in the loupe and in culling mode</td></tr><tr><td>Tap the photo in the loupe</td><td>100% where you tapped; tap again for the whole photo</td></tr><tr><td>Cull</td><td>One group at a time: Keep this, reject the rest</td></tr><tr><td>☰</td><td>The tuning panel: strictness, AI models, your profile</td></tr></table><h3>With a keyboard</h3>",
   "fin.handheldLead": "{keep} to keep, {reject} to reject. A phone or tablet browser cannot copy photos into other folders, so the files are put in order from a computer.",
   "fin.handheld1": "Save your decisions to a file (below) and put it where your computer can reach it: AirDrop, iCloud Drive, a shared folder.",

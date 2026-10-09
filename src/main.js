@@ -17,6 +17,7 @@ import { $, $$, esc, fmtNum, fmtDuration, toast, revokeAll } from "./ui/dom.js";
 import { renderToolbar, layout, refresh, appendLive, visibleOrder, setDensity } from "./ui/gallery.js";
 import { drawHist, bindHist } from "./ui/histogram.js";
 import { ask } from "./ui/confirm.js";
+import { VERSION } from "./version.js";
 import { setLiquidGlass } from "./ui/glass.js";
 import { setWallpaper } from "./ui/wallpaper.js";
 import { openLightbox, closeLightbox, render as renderLb, step, stepGroup, zoomFocus, toggleView, bindLightbox, lbState } from "./ui/lightbox.js";
@@ -365,6 +366,7 @@ function bindToolbar() {
   $("#density").addEventListener("input", (e) => { S.density = +/** @type {HTMLInputElement} */ (e.target).value; setDensity(); });
   $("#search").addEventListener("input", debounce((e) => { UI.filter.search = /** @type {HTMLInputElement} */ (e.target).value.trim(); refresh(); }, 150));
   $("#helpBtn").addEventListener("click", () => ($("#help").hidden = false));
+  $("#appVersion").textContent = "Nítido " + VERSION;
   $("#helpClose").addEventListener("click", () => ($("#help").hidden = true));
   $("#help").addEventListener("click", (e) => { if (e.target === $("#help")) $("#help").hidden = true; });
 

@@ -1,0 +1,45 @@
+name: Release
+# Push a version tag (npm version minor && git push --follow-tags) and this publishes the release:
+# its notes from CHANGELOG.md, and the app as a zip for any static host. The Image workflow tags the
+# Docker image with the same version.
+on:
+  push:
+    tags: ["v*"]
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: The tag, package.json and the app agree on the version
+        run: |
+          V="${GITHUB_REF_NAME#v}"
+          node -e "const v=require('./package.json').version; if (v !== '$V') { console.error('package.json says ' + v + ', the tag says $V'); process.exit(1); }"
+          grep -q "VERSION = \"$V\"" src/version.js || { echo "src/version.js does not say $V"; exit 1; }
+          grep -q "^## $V " CHANGELOG.md || { echo "CHANGELOG.md has no section for $V"; exit 1; }
+          echo "V=$V" >> "$GITHUB_ENV"
+      - run: npm test
+      - run: npm run test:smoke
+      - name: The app as a zip, and the release notes
+        run: |
+          mkdir -p "nitido-$V"
+          cp -r index.html config.js sw.js manifest.webmanifest icon.svg icons styles fonts src LICENSE "nitido-$V/"
+          zip -qr "nitido-$V.zip" "nitido-$V"
+          sha256sum "nitido-$V.zip" > "nitido-$V.zip.sha256"
+          awk -v v="$V" '$0 ~ "^## " v " " {on=1; next} /^## / {on=0} on' CHANGELOG.md > notes.md
+          cat >> notes.md <<NOTES
+
+          ---
+          **Run it**
+          - Online: https://brunoaclopes.github.io/nitido/
+          - Docker: \`docker run -d -p 8080:8080 -v ./data:/data ghcr.io/brunoaclopes/nitido:$V\` (see the README for HTTPS)
+          - Any static host: unzip \`nitido-$V.zip\` and serve the folder over HTTPS
+          NOTES
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" "nitido-$V.zip" "nitido-$V.zip.sha256" --title "Nítido $V" --notes-file notes.md --verify-tag
