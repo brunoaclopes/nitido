@@ -2,8 +2,8 @@
 // - The app's own files: network first (updates arrive at once), cache as the fallback.
 // - Versioned libraries and models: cache first; they never change at the same URL.
 // CLIP weights are cached by transformers.js itself and are not handled here.
-const APP = "nitido-app-v2", LIBS = "nitido-libs-v1";
-const SHELL = ["./", "index.html", "config.js", "styles/app.css", "fonts/instrument-sans-latin.woff2", "fonts/instrument-sans-latin-ext.woff2", "src/main.js", "manifest.webmanifest", "icon.svg"];
+const APP = "nitido-app-v3", LIBS = "nitido-libs-v1";
+const SHELL = ["./", "index.html", "config.js", "styles/app.css", "fonts/instrument-sans-latin.woff2", "fonts/instrument-sans-latin-ext.woff2", "src/main.js", "manifest.webmanifest", "icon.svg", "icons/icon-192.png"];
 const LONG = /^https:\/\/(cdn\.jsdelivr\.net\/npm\/@(mediapipe|huggingface)\/|storage\.googleapis\.com\/mediapipe-models\/)/;
 
 self.addEventListener("install", (e) => { e.waitUntil(caches.open(APP).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting())); });

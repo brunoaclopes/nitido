@@ -4,12 +4,12 @@
 import { $, esc, fmtBytes, toast } from "./dom.js";
 import { ask } from "./confirm.js";
 import { t } from "../i18n/index.js";
-import { S, SESSION, saveSettings, emit } from "../app/state.js";
+import { S, SESSION, SERVER, saveSettings, emit } from "../app/state.js";
 import { ready } from "../app/model.js";
 import { plan, execute, scriptFor, emptyRejectFolder } from "../app/organize.js";
 import { getMeta, putMeta } from "../app/store.js";
 import { buildXmp } from "../core/xmp.js";
-import { ratingFor, download } from "../app/exporter.js";
+import { ratingFor, download, exportJson } from "../app/exporter.js";
 
 const F = { open: false, dest: null, running: false, signal: { stopped: false }, result: null };
 export const finishState = F;
@@ -39,6 +39,20 @@ function render() {
   const write = canWrite() && !!SESSION.dir;
   const body = $("#finishBody");
   if (F.result) { body.innerHTML = resultHTML(F.result, o); return; }
+  // a phone or tablet browser cannot copy into other folders, and a shell script is no use there:
+  // the decisions go to the computer instead, which finishes the job
+  const handheld = !write && !!globalThis.matchMedia?.("(hover: none) and (pointer: coarse)").matches;
+  const lead = $("#finLead"); if (lead) lead.hidden = handheld;
+  if (handheld) {
+    body.innerHTML = `
+      <p>${esc(t("fin.handheldLead", { keep: p.keep.length, reject: p.reject.length }))}</p>
+      <ol class="fin-steps">${(SERVER.sync ? ["fin.handheldSync1", "fin.handheldSync2"] : ["fin.handheld1", "fin.handheld2", "fin.handheld3"]).map((k) => `<li>${esc(t(k))}</li>`).join("")}</ol>
+      <div class="row-btns fin-actions">
+        ${SERVER.sync ? "" : `<button class="btn primary" data-a="decisions">${esc(t("fin.saveDecisions"))}</button>`}
+        <button class="btn${SERVER.sync ? " primary" : " quiet"}" data-a="close">${esc(t("lb.close"))}</button>
+      </div>`;
+    return;
+  }
   body.innerHTML = `
     <section class="fin-row keep">
       <div class="fin-head"><i></i><b>${esc(t("fin.keep", { n: p.keep.length }))}</b><span class="num">${esc(fmtBytes(p.keepBytes))}</span></div>
@@ -142,6 +156,7 @@ export function bindFinish() {
     else if (a === "start") start();
     else if (a === "stop") F.signal.stopped = true;
     else if (a === "cull") { closeFinish(); emit("cull", { only: "review" }); }
+    else if (a === "decisions") { exportJson(); toast(t("fin.decisionsSaved"), 9000); }
     else if (a === "script") {
       const o = { ...opts(), destPath: S.organize.destPath || "/Volumes/photos" }, p = plan(ready(), o), k = b.dataset.k;
       const note = t("fin.scriptNote", { keep: p.keep.length, reject: p.reject.length });

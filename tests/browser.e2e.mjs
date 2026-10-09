@@ -353,7 +353,9 @@ try {
   undone.rejected && undone.restored && undone.n === 2 ? ok("Undo restores a bulk reject") : fail("undo: " + JSON.stringify(undone));
 
   /* ---------- gallery at several widths ---------- */
-  for (const [w, h, mobile] of [[1440, 900], [1100, 800], [820, 1000], [390, 844, true]]) {
+  // tablets (iPad portrait, landscape, Air landscape) are touch screens too
+  const TABLETS = [[768, 1024, true], [1024, 768, true], [1180, 820, true]];
+  for (const [w, h, mobile] of [[1440, 900], [1100, 800], [820, 1000], ...TABLETS, [390, 844, true]]) {
     await viewport(w, h, mobile);
     // the window itself never scrolls (only its panels do): name what sticks out below or to the right
     const spill = await evaluate(`(() => { const d = document.scrollingElement; if (d.scrollHeight <= innerHeight + 1 && d.scrollWidth <= innerWidth + 1) return [];
@@ -398,6 +400,7 @@ try {
   await click("#menuBtn"); await sleep(300);
   await evaluate(`(() => { const r = document.querySelector("#side").getBoundingClientRect(); document.elementFromPoint(r.right + 20, 400)?.click(); return true; })()`); await sleep(300);
   const closedByBackdrop = !(await evaluate(`document.querySelector("#app").classList.contains("side-open")`));
+  await viewport(768, 1024, true); await click("#menuBtn"); await sleep(400); await shot("03-drawer-768"); await audit("drawer 768", true); await click("#sideClose"); await sleep(300);
   drawerOpen && closedByButton && closedByBackdrop ? ok("phone drawer opens and closes (button and backdrop)") : fail(`phone drawer: open ${drawerOpen}, close button ${closedByButton}, backdrop ${closedByBackdrop}`);
   await viewport(1440, 900);
   for (const v of ["review", "reject"]) {
@@ -418,7 +421,7 @@ try {
     await sleep(1200);
     const info = await evaluate(`({ verdict: document.querySelector("#lbVerdict").textContent, why: document.querySelector("#lbWhy").textContent, tags: [...document.querySelectorAll("#lbTags span")].map((s) => s.textContent) })`);
     console.log(`  ${n}: ${info.verdict} — ${info.tags.join(", ")}\n      ${info.why}`);
-    for (const [w, h, mobile] of [[1440, 900], [820, 1000], [390, 844, true]]) {
+    for (const [w, h, mobile] of [[1440, 900], [820, 1000], ...TABLETS, [390, 844, true]]) {
       await viewport(w, h, mobile);
       await shot(`05-loupe-${n.replace(/\.\w+$/, "")}-${w}`);
       await audit(`loupe ${w}`, !!mobile);
@@ -443,7 +446,7 @@ try {
   await evaluate(`document.dispatchEvent(new KeyboardEvent("keydown", { key: "t", bubbles: true })), true`);
   await sleep(1200);
   if (await evaluate(`!document.querySelector("#cull").hidden`)) {
-    for (const [w, h, mobile] of [[1440, 900], [390, 844, true]]) {
+    for (const [w, h, mobile] of [[1440, 900], ...TABLETS, [390, 844, true]]) {
       await viewport(w, h, mobile); await sleep(500);
       await shot(`11-cull-${w}`);
       await audit(`cull ${w}`, !!mobile);
@@ -482,8 +485,17 @@ try {
   await audit("finish");
   const fo = await overflowReport("#finish .modal-card");
   fo.length ? fail(`finish dialog overflows: ${fo.join("; ")}`) : ok("finish dialog fits");
-  await viewport(390, 844, true); await sleep(300); await shot("15-finish-390"); await viewport(1440, 900);
-  await evaluate(`document.querySelector("#finish [data-a='close']").click(), true`);
+  for (const [w, h] of [[768, 1024], [1024, 768], [390, 844]]) {
+    // opened on the device itself (a tablet gets its own version of the dialog)
+    await evaluate(`document.querySelector("#finish [data-a='close']")?.click(), true`);
+    await viewport(w, h, true); await click("#finishBtn"); await sleep(400); await shot(`15-finish-${w}`); await audit(`finish ${w}`, true);
+    const f = await overflowReport("#finish .modal-card");
+    if (f.length) fail(`finish dialog overflows at ${w}px: ${f.join("; ")}`);
+  }
+  const handheld = await evaluate(`!!document.querySelector("#finish .fin-steps")`);
+  handheld ? ok("on a phone or tablet, Finish explains how to finish on a computer") : fail("Finish on a phone shows the desktop options");
+  await evaluate(`document.querySelector("#finish [data-a='close']")?.click(), true`);
+  await viewport(1440, 900);
   // the real copy and move code, on the browser's private file system (same API as a real folder)
   const fs = await evaluate(`(async () => {
     const { plan, execute } = await import(new URL("src/app/organize.js", location.href).href);
@@ -553,6 +565,18 @@ try {
     q ? ok(`loading a profile asks first: “${q}”`) : fail("loading a profile did not ask");
     await click('.modal.confirm [data-a="no"]').catch(() => {});
   }
+  // decisions made on another device (a tablet) come back through the JSON report
+  await evaluate(`import(new URL("src/app/exporter.js", location.href).href).then((m) => (m.exportJson(), true))`); await sleep(1200);
+  const rep = readdirSync(SHOTS).find((f) => f.endsWith("-nitido.json"));
+  if (rep) {
+    const { result: pin2 } = await page("Runtime.evaluate", { expression: `document.querySelector("#profFile")` });
+    await page("DOM.setFileInputFiles", { objectId: pin2.objectId, files: [join(SHOTS, rep)] });
+    await sleep(500);
+    const q2 = await evaluate(`document.querySelector(".modal.confirm h2")?.textContent || ""`);
+    if (q2) { await click('.modal.confirm [data-a="yes"]'); await sleep(500); }
+    const t2 = await evaluate(`document.querySelector("#toast").textContent`);
+    /^Apply \d+ decision/.test(q2) && /applied/.test(t2) ? ok(`decisions from another device load back: “${q2}” → ${t2}`) : fail(`decisions import: “${q2}” / ${t2}`);
+  } else fail("no JSON report was saved");
   const cfg = await evaluate(`({ ...(window.NITIDO || {}) })`);
   if (cfg.sync) {
     // a setting changed here reaches the server, and a second browser starts with it

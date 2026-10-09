@@ -20,6 +20,8 @@ the keepers copied to your NAS. All of it computed on your machine: no server, n
 
 **English** · [Português](#português)
 
+[Privacy](#private-by-design) · [What it does](#what-it-does) · [Use it](#use-it) · [Install](#install-it-as-an-app) · [Phone or tablet](#on-a-phone-or-tablet) · [Browsers](#which-browser) · [Your own server](#run-it-on-your-server) · [A shoot](#a-shoot-start-to-finish) · [Developers](#for-developers)
+
 <img src="docs/gallery.webp" alt="Gallery: a shoot grouped into similar shots, each photo with its verdict and measured blur, the blur histogram in the side panel" width="100%">
 
 </div>
@@ -68,7 +70,7 @@ The servers that host the app, the libraries and the models (GitHub Pages, jsDel
 
 <div align="center">
 <img src="docs/phone-gallery.webp" width="30%" alt="The gallery on a phone">&nbsp;&nbsp;<img src="docs/phone-cull.webp" width="30%" alt="Culling mode on a phone">
-<br><sub>Works on a phone too, and installs as an app that runs offline.</sub>
+<br><sub>Works on phones and tablets too, and <a href="#install-it-as-an-app">installs as an app</a> that runs offline.</sub>
 </div>
 
 **Also:**
@@ -82,7 +84,7 @@ The servers that host the app, the libraries and the models (GitHub Pages, jsDel
 
 ## Use it
 
-**Online:** open **[brunoaclopes.github.io/nitido](https://brunoaclopes.github.io/nitido/)** in Chrome or Edge and choose your shoot folder: JPEG and RAF together, straight off the card. The AI models download once, 100 to 400 MB depending on the tier, and are cached.
+**Online:** open **[brunoaclopes.github.io/nitido](https://brunoaclopes.github.io/nitido/)** and choose your shoot folder: JPEG and RAF together, straight off the card. It works in any current browser on a computer, phone or tablet. Chrome or Edge on a computer can also sort the files into place ([what each browser can do](#which-browser)). The AI models download once, 100 to 400 MB depending on the tier, and are cached.
 
 **Locally:** with [Node.js](https://nodejs.org) 18 or newer, there is nothing to install:
 
@@ -95,6 +97,12 @@ npm run models       # optional: keep the AI models and libraries in ./models, s
 - Results and your decisions are saved in the browser as you go, so reopening a folder is instant.
 - After a refresh in the middle of a shoot, Chrome and Edge reopen the folder by themselves, on the same filters and photo. Other browsers ask for the folder again, and nothing is measured twice.
 - **Reanalyse** measures the folder again from scratch, after you change the AI models or add files, and keeps your decisions.
+
+**Your profile.** Under *AI models › Your profile*:
+- **Save to a file** keeps your settings and personal model in one small JSON file, with no photo in it. Keep it as a backup, or load it in another browser.
+- **Load from a file** brings a profile back. It merges its decisions into your personal model and asks before replacing your settings.
+- **Decisions from another device:** *Load from a file* also takes the *Export › JSON report* of a shoot culled on another device. With the same folder open, it applies those decisions here. That is how a shoot culled on a tablet gets finished on a computer.
+- On a [self-hosted copy](#run-it-on-your-server), the profile and every shoot's decisions are kept on the server, with nothing to save by hand.
 
 **Theme.** The half-circle button in the top bar switches between three themes:
 - **Dark:** neutral greys. It is the default and the best for judging colour.
@@ -112,6 +120,54 @@ npm run models       # optional: keep the AI models and libraries in ./models, s
 
 <sub>*Measured on a 12-core Mac. The similarity model runs in the background while the photos are measured.<br>
 SigLIP and SigLIP 2 are the Pareto-optimal models in [Immich's search benchmark](https://docs.immich.app/features/searching): 81.9% and 84.9% recall, against 69.9% for OpenAI's ViT-B/32. MobileCLIP is Apple's lighter family, also ahead of ViT-B/32. Each model's similarity scale was calibrated on X-H2 bursts. `npm run models -- heavy` keeps a tier's models for offline use.</sub>
+
+### Install it as an app
+
+Nítido is a web app that installs like an app: it gets its own icon and window, and it opens without the browser's toolbars. After the first analysis has cached the AI models, it works with no internet, and updates arrive by themselves the next time it is opened online.
+
+| Device | How |
+| --- | --- |
+| Computer, Chrome or Edge | The install icon at the right of the address bar, or the menu › *Install Nítido* (Chrome: *Cast, save and share › Install page as app*) |
+| Mac, Safari | *File › Add to Dock* |
+| iPhone, iPad | In Safari: *Share › Add to Home Screen* |
+| Android | In Chrome: the menu › *Install app* (or *Add to Home screen*) |
+
+The installed app keeps the browser's storage, so your decisions and personal model are there. One exception: on iPhone and iPad, a home-screen app has its own storage, separate from Safari's. Move a profile between them with *Save to a file*.
+
+### On a phone or tablet
+
+You can analyse and cull a whole shoot on an iPad or a phone. The files are put in order from a computer, because a mobile browser cannot copy photos into other folders.
+
+1. **Get the shoot into a folder.**
+   - iPhone or iPad: plug in a card reader (or the camera) and copy the card to a folder in the *Files* app.
+   - Android: copy it to a folder with the *Files* app.
+   - Folder selection needs iOS or iPadOS 18.4, or Chrome on Android. A photo library is not a folder; photos sent to the phone by the camera's app have to be saved to a folder first.
+2. **Open Nítido and choose that folder.** On a phone, the app suggests the Light AI tier, which is gentler on battery and memory. Big shoots are faster on a computer.
+3. **Cull with your fingers.**
+   - Tap a photo to open it, then tap the photo for 100% where you tapped.
+   - Swipe left and right between frames.
+   - Tap the circle on a photo to select it, and use the bar that appears for keep, reject, compare or group.
+   - **Cull** goes one group at a time; *Keep this, reject the rest* finishes a burst in one tap.
+   - The **?** button lists every gesture. With a keyboard attached, every shortcut works too.
+4. **Finish on a computer.**
+   - *Finish* explains the steps.
+   - Save your decisions to a file. Then, on the computer, open the same folder in Chrome or Edge and load that file under *Your profile*.
+   - With a [self-hosted copy](#run-it-on-your-server), there is nothing to carry: the decisions are already on the server.
+
+On a tablet, the loupe puts its panel beside the photo in landscape and below it in portrait. The tuning panel opens from the ☰ button.
+
+### Which browser
+
+| | Chrome, Edge (computer) | Safari, Firefox (computer) | iPhone, iPad, Android |
+| --- | --- | --- | --- |
+| Analyse, cull, compare, calibrate | ✓ | ✓ | ✓ |
+| Drop a folder on the window | ✓ | ✓ | — |
+| Reopen the folder by itself after a refresh | ✓ | asks for the folder again | asks for the folder again |
+| Finish: copy the keepers to your NAS, set rejects aside | ✓ | a `.sh` or `.ps1` script that does it | on a computer, [as above](#on-a-phone-or-tablet) |
+| XMP sidecars | next to the photos | a ZIP to unpack in the folder | a ZIP |
+| Install as an app, offline | ✓ | Safari: *Add to Dock* | ✓ |
+
+Every one of them keeps the photos on your device.
 
 ## Run it on your server
 
@@ -182,6 +238,68 @@ It says so on its start screen. Any of these fixes it:
    - Safari and Firefox cannot write to your folders. There, Finish downloads a `.sh` or `.ps1` script that does the same.
 
 Lightroom is optional: XMP sidecars with stars, colour labels and keywords can be written next to the photos or the copies.
+
+<details>
+<summary><b>Every feature, where to find it</b></summary>
+
+**Top bar**
+- **Search file:** jump to a photo by name.
+- **PT / EN:** the language.
+- **Theme:** the half-circle button.
+- **Cull** (<kbd>T</kbd>): culling mode.
+- **Finish:** sort the files on disk.
+- **Export:**
+  - *XMP sidecars*: written next to the photos, merged with any XMP already there. Where the browser cannot write, you get a ZIP to unpack in the folder.
+  - *CSV table*: every metric, one row per photo.
+  - *JSON report*: groups, decisions and detailed scores. It is also the file that carries decisions to another device.
+  - *Scripts to move rejects*: `.sh` and `.ps1`.
+- **Reanalyse**, **Open another folder:** on narrow screens these two move into the ☰ panel.
+
+**Gallery**
+- **Tabs** (*All*, *Keep*, *Review*, *Reject*) filter by verdict.
+- **Reasons** narrow it to one reason: closed eyes, motion blur, missed focus and so on.
+- **Photo filters:** faces, subjects, each Fujifilm film simulation, and more.
+- **Sort** by best score, time, sharpness or name.
+- **Best only** shows one photo per group, and the slider sets the photo size.
+- Photos sit in **scenes** (gaps in time) and **groups** (similar shots).
+  - Click a group's name to rename it.
+  - *Compare* opens the group side by side.
+  - *Reject the others* keeps the suggested best.
+  - *Best only* or *Show all* folds a long burst.
+- **Selection:**
+  - The circle on a photo, <kbd>Shift</kbd>-click for a range, or <kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>A</kbd> for all.
+  - The bar that appears keeps, rejects, compares, or *Groups together* the selected photos.
+  - Bulk decisions can be undone from the message that follows.
+
+**Loupe** (a photo opened)
+- **Decision:** *Keep*, *Reject* or *Automatic*, with the verdict and its reason in plain words.
+- **Stars and labels:** 1–5 stars and a colour label, written into XMP.
+- **Overlays:**
+  - *Focus area*: where the blur was measured.
+  - *Faces*: with their eye state.
+  - *Sharpness map*: the whole frame.
+  - *100% on focus*: zooms to the measured spot. Click or tap the photo to zoom where you point.
+- **Film recipe:** below the photo's details, with how many photos share it, and a button that copies it as text.
+
+**Compare** (<kbd>C</kbd>): up to four photos side by side. Click or tap one to zoom all of them to 100% at the same spot. *Pick this*, or <kbd>1</kbd>–<kbd>4</kbd>, keeps that one and rejects the others.
+
+**Tuning panel** (the left column; ☰ on narrower screens)
+- **Overview:**
+  - The blur histogram of the shoot. Drag its line to move the sharpness limit and watch the verdicts change live.
+  - *Calibrate* fits the limit to your eye.
+  - *Strictness*: *Relaxed*, *Normal*, *Strict* or *Custom*.
+- **Focus:** the sharpness limit in pixels, when focus counts as missed, how much softer than the group is too soft, motion sensitivity, and when a blurred background counts as intentional.
+- **People:** when an eye counts as closed, which faces to check, whether closed eyes reject, and over- and underexposure.
+- **Groups:** how similar shots must be, and the gaps that start a new scene or burst.
+- **AI models:**
+  - The tier, and which models to use.
+  - *Reanalyse*.
+  - The *personal model*, which you can switch on, off, or make forget what it learned.
+  - *Your profile*: save to a file, load from a file, and the profile on a self-hosted server.
+- **Export:** how rejects are written to XMP, and whether keywords are included.
+- **Comparison:** *Set baseline*, change any setting, and see how many photos changed verdict. *Reset values* puts every setting back.
+
+</details>
 
 <a name="how-a-photo-is-judged"></a>
 <details>
@@ -329,6 +447,34 @@ npm run models       # opcional: guarda os modelos e as bibliotecas em ./models,
 - **Máximo:** SigLIP 2 B/16, ~405 MB.
 
 A app sugere um nível para o teu computador. Os tempos medidos estão [na tabela em inglês](#use-it).
+
+### Instalar como app
+
+O Nítido instala-se como uma app, com ícone e janela próprios. Depois da primeira análise funciona sem internet.
+
+- **Computador (Chrome ou Edge):** o ícone de instalar à direita da barra de endereço.
+- **Mac (Safari):** *Ficheiro › Adicionar à Dock*.
+- **iPhone, iPad:** no Safari, *Partilhar › Adicionar ao ecrã principal*.
+- **Android:** no Chrome, o menu › *Instalar app*.
+
+No iPhone e no iPad, a app do ecrã principal tem um espaço próprio, separado do Safari. Usa *Guardar num ficheiro* para levares o perfil de um para o outro.
+
+### No telemóvel ou tablet
+
+Podes analisar e triar uma sessão inteira num iPad ou num telemóvel. A arrumação dos ficheiros faz-se a partir de um computador, porque um browser móvel não consegue copiar fotos para outras pastas.
+
+1. **Copia o cartão para uma pasta** na app *Ficheiros*, com um leitor de cartões ou a câmara ligada. Precisas do iOS ou iPadOS 18.4, ou do Chrome no Android.
+2. **Abre o Nítido e escolhe essa pasta.** No telemóvel é sugerido o nível de IA Leve.
+3. **Tria com os dedos.**
+   - Toca numa foto para a abrir, e toca na foto para 100%.
+   - Desliza entre fotos.
+   - Toca no círculo para selecionar.
+   - O botão **?** mostra todos os gestos.
+4. **Conclui no computador.** *Concluir* explica os passos:
+   - guarda as decisões num ficheiro;
+   - no computador, com a mesma pasta aberta no Chrome ou no Edge, abre-o em *O teu perfil*.
+
+   Num Nítido no teu servidor, as decisões já lá estão.
 
 ### No teu servidor
 

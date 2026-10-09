@@ -12,7 +12,10 @@
 <title>Nítido</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 22 22'%3E%3Cpath d='M1 7V1h6M15 1h6v6M21 15v6h-6M7 21H1v-6' fill='none' stroke='%23ececec' stroke-width='2'/%3E%3Ccircle cx='11' cy='11' r='2.5' fill='none' stroke='%235fd394' stroke-width='2'/%3E%3C/svg%3E">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="apple-touch-icon" href="icon.svg">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="Nítido">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
 <link rel="stylesheet" href="styles/app.css">
 </head>
 <body>
@@ -314,7 +317,7 @@
 <div class="modal" id="finish" hidden role="dialog" aria-modal="true" aria-labelledby="finishTitle">
   <div class="modal-card wide">
     <div class="panel-head"><h2 id="finishTitle" data-i18n="fin.title"></h2><button class="btn quiet small" data-a="close" data-i18n="lb.close"></button></div>
-    <p class="hint" data-i18n="fin.lead"></p>
+    <p class="hint" id="finLead" data-i18n="fin.lead"></p>
     <div id="finishBody"></div>
   </div>
 </div>
@@ -323,6 +326,7 @@
 <div class="help" id="help" hidden role="dialog" aria-modal="true">
   <div class="help-card">
     <div class="panel-head"><h2 data-i18n="help.title"></h2><button class="btn quiet small" id="helpClose" data-i18n="lb.close"></button></div>
+    <div class="help-body touch-help" data-i18n-html="help.touch"></div>
     <div class="help-body" data-i18n-html="help.body"></div>
   </div>
 </div>

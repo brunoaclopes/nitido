@@ -684,6 +684,27 @@ function renderSync() {
   $("#syncInfo").textContent = sync.state === "saving" ? t("sync.saving") : sync.state === "offline" ? t("sync.offline")
     : sync.state === "saved" && time ? t("sync.saved", { time }) : t("sync.idle");
 }
+/** The decisions from a JSON report (Export), made on another device, applied to the same photos here. */
+async function importDecisions(rep) {
+  if (!SESSION.items.length) { toast(t("dec.openFirst", { folder: rep.folder || "" }), 9000); return; }
+  const byPath = new Map(SESSION.items.map((it) => [it.path, it])), byName = new Map(SESSION.items.map((it) => [it.name, it]));
+  const hits = [];
+  for (const ph of rep.photos) {
+    if (!ph?.manual || typeof ph.manual !== "object") continue;
+    const it = byPath.get(ph.path) || byName.get(String(ph.path || "").split("/").pop());
+    if (it) hits.push([it, ph.manual]);
+  }
+  if (!hits.length) { toast(t("dec.none", { folder: rep.folder || "" }), 9000); return; }
+  if (!(await ask({ title: t("dec.title", { n: hits.length }), body: t("dec.body", { folder: rep.folder || SESSION.name }), ok: t("dec.ok") }))) return;
+  for (const [it, m] of hits) {
+    const clean = Object.fromEntries(Object.entries(m).filter(([k, v]) => ["flag", "rating", "label", "why"].includes(k) && v != null));
+    SESSION.data.manual[it.path] = clean; it.manual = clean;
+  }
+  touchSession();
+  record(hits.map(([it]) => it));
+  recompute(); renderAll();
+  toast(t("dec.done", { n: hits.length }));
+}
 function bindProfile() {
   $("#profSave").addEventListener("click", async () => {
     const day = new Date().toISOString().slice(0, 10), file = `nitido-profile-${day}.json`;
@@ -697,6 +718,7 @@ function bindProfile() {
     if (!f) return;
     let p = null;
     try { p = JSON.parse(await f.text()); } catch {}
+    if (p?.app === "Nítido" && Array.isArray(p.photos)) { await importDecisions(p); return; }
     if (!isProfile(p)) { toast(t("prof.bad")); return; }
     if (!(await ask({ title: t("prof.loadTitle"), body: t("prof.loadBody", { n: decisionsIn(p) }), ok: t("prof.loadOk") }))) return;
     await applyProfile(p, { add: true });

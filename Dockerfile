@@ -18,6 +18,7 @@ RUN apk add --no-cache su-exec
 COPY index.html config.js sw.js manifest.webmanifest icon.svg server.mjs docker-entrypoint.sh package.json LICENSE ./
 COPY styles ./styles
 COPY fonts ./fonts
+COPY icons ./icons
 COPY src ./src
 COPY --from=models /app/models ./models
 ENV HOST=0.0.0.0 PORT=8080 NITIDO_DATA=/data
