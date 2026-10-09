@@ -5,7 +5,6 @@ import { DEFAULTS as SCORING } from "../core/scoring.js";
 import { GROUP_DEFAULTS } from "../core/grouping.js";
 import { getSession, putSession } from "./store.js";
 import { ORGANIZE_DEFAULTS } from "./organize.js";
-import { debounce } from "../core/util.js";
 
 const KEY = "nitido-v3";
 const browserLang = (navigator.language || "en").toLowerCase().startsWith("pt") ? "pt" : "en";
@@ -45,8 +44,12 @@ export const SESSION = {
   key: "", name: "", dir: null, items: [], groups: [], scenes: 0, evals: new Map(), best: new Map(),
   data: { manual: {}, groupNames: {}, edits: { detach: [], split: [], join: [] }, model: null },
 };
-const persist = debounce(() => { if (SESSION.key) putSession(SESSION.key, SESSION.data); }, 400);
-export function touchSession() { persist(); }
+let saveTimer = 0;
+const saveNow = () => { saveTimer = 0; if (SESSION.key) putSession(SESSION.key, SESSION.data); };
+// saved straight after each change (a burst of changes in one go is one write): a refresh loses nothing
+export function touchSession() { clearTimeout(saveTimer); saveTimer = setTimeout(saveNow, 0); }
+/** Writes a pending save at once (before the page goes away). */
+export function flushSession() { if (saveTimer) { clearTimeout(saveTimer); saveNow(); } }
 export async function loadSession(key) {
   const d = await getSession(key);
   SESSION.data = {

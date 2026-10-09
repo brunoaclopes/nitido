@@ -193,6 +193,8 @@ try {
   await viewport(1440, 900);
   await page("Page.navigate", { url: BASE });
   await until(`document.readyState === "complete" && !!document.querySelector("#picker")`, 20000, "page load");
+  // a clean start: no folder to resume from an earlier run
+  await evaluate(`import(new URL("src/app/store.js", location.href).href).then(({ putMeta }) => putMeta("last", null)).then(() => (sessionStorage.clear(), true))`);
   await evaluate(`localStorage.setItem("nitido-v3", JSON.stringify({ lang: "en", tier: ${JSON.stringify(opt("tier", "standard"))}, theme: ${JSON.stringify(opt("theme", "dark"))} })), location.reload(), true`).catch(() => {});
   await until(`document.readyState === "complete" && document.querySelector("[data-lang=en]")?.getAttribute("aria-pressed") === "true"`, 20000, "English UI");
   if (!flag("keep-cache")) await evaluate(`new Promise((r) => { const q = indexedDB.deleteDatabase("nitido"); q.onsuccess = q.onerror = q.onblocked = () => r(true); })`);
@@ -464,6 +466,49 @@ try {
   await click('[data-lang="pt"]'); await sleep(500); await shot("10-gallery-pt");
   const leftovers = await evaluate(`[...document.querySelectorAll("body *")].filter((n) => !n.children.length && /^[a-z]+(\\.[a-zA-Z]+)+$/.test(n.textContent.trim())).map((n) => n.textContent.trim()).slice(0, 10)`);
   leftovers.length ? fail("untranslated keys on screen: " + leftovers.join(", ")) : ok("no raw i18n keys on screen");
+  await click('[data-lang="en"]'); await sleep(300);
+
+  /* ---------- a refresh mid-session ---------- */
+  // a decision made just before the refresh (inside the save delay), a filter, and a photo open in the loupe
+  const STATE = `import(new URL("src/app/state.js", location.href).href)`;
+  const pre = await evaluate(`${STATE}.then(async ({ SESSION, emit }) => {
+    const it = SESSION.items.find((i) => i.ready && !i.error && !i.manual);
+    emit("manual", { items: [it], patch: { rating: 3 } });
+    document.querySelector('#verdictTabs [data-v="all"]').click();
+    const open = [...document.querySelectorAll(".card")].find((c) => !c.hidden && c._it.ready);
+    open.click();
+    await new Promise((r) => setTimeout(r, 300));
+    return { rated: it.path, loupe: open._it.path };
+  })`);
+  await page("Page.reload", {}); await sleep(2500);
+  const offer = await evaluate(`!document.querySelector("#resume").hidden && document.querySelector("#resumeBtn").textContent`);
+  offer ? ok(`after a refresh the start screen offers: ${offer}`) : fail("no resume offer after a refresh");
+  const { result: input2 } = await page("Runtime.evaluate", { expression: `document.querySelector("#picker")` });
+  await evaluate(`document.querySelector("#picker").removeAttribute("webkitdirectory"), true`);
+  const tR = Date.now();
+  await page("DOM.setFileInputFiles", { objectId: input2.objectId, files });
+  await until(`document.querySelector("#app").dataset.state === "session" && document.querySelector("#progress").hidden`, 10 * 60000, "the folder again");
+  await sleep(800);
+  const post = await evaluate(`${STATE}.then(({ SESSION }) => ({ rating: SESSION.items.find((i) => i.path === ${JSON.stringify(pre.rated)})?.manual?.rating,
+    loupe: !document.querySelector("#lb").hidden && document.querySelector("#lbName")?.textContent, cached: document.querySelector("#toast").textContent }))`);
+  post.rating === 3 ? ok("the decision made just before the refresh was kept") : fail(`decision lost in the refresh: ${JSON.stringify(post)}`);
+  post.loupe && post.loupe.startsWith(pre.loupe.replace(/\.[^.]+$/, "")) ? ok(`the loupe reopened on ${pre.loupe} (${((Date.now() - tR) / 1000).toFixed(1)} s, ${post.cached})`) : fail(`loupe not restored: ${JSON.stringify(post)} wanted ${pre.loupe}`);
+  await evaluate(`document.querySelector("#lbClose").click(), true`);
+  // with a folder handle (Chrome's folder picker or drag and drop) the refresh reopens the folder by itself
+  const nAgain = await evaluate(`(async () => {
+    const { SESSION } = await ${STATE}; const { putMeta } = await import(new URL("src/app/store.js", location.href).href);
+    const root = await navigator.storage.getDirectory();
+    try { await root.removeEntry("again", { recursive: true }); } catch {}
+    const d = await root.getDirectoryHandle("again", { create: true });
+    const some = SESSION.items.filter((i) => i.ready && !i.error).slice(0, 3);
+    for (const it of some) { const w = await (await d.getFileHandle(it.name, { create: true })).createWritable(); await w.write(it.file); await w.close(); }
+    await putMeta("last", { name: "again", dir: d, n: some.length, at: Date.now() });
+    return some.length;
+  })()`);
+  await page("Page.reload", {}); await sleep(1500);
+  await until(`document.querySelector("#app")?.dataset.state === "session" && document.querySelector("#progress").hidden`, 5 * 60000, "the folder to reopen by itself");
+  const reopened = await evaluate(`${STATE}.then(({ SESSION }) => SESSION.name + " " + SESSION.items.length)`);
+  reopened === "again " + nAgain ? ok(`a refresh reopens the folder by itself (${reopened} photos)`) : fail(`refresh did not reopen the folder: ${reopened}`);
 } catch (e) {
   fail(String(e?.message || e));
   await shot("99-failure").catch(() => {});

@@ -155,8 +155,10 @@ async function analyse(it, w) {
 
 /* ---------- CLIP, in the background ---------- */
 let clipChain = Promise.resolve();
-function queueClip(it, key, onUpdate, token) {
-  if (!S.ai.clip || it.emb || !it.clipIn || clipStatus.state === "error") { putCache(key, snapshot(it)); return; }
+function queueClip(it, key, onUpdate, token, fresh) {
+  // saved now, so a refresh keeps the measurement even while the similarity model is still behind
+  if (fresh) putCache(key, snapshot(it));
+  if (!S.ai.clip || it.emb || !it.clipIn || clipStatus.state === "error") return;
   clipChain = clipChain.then(async () => {
     if (token !== RUN.token) return;
     try {
@@ -191,8 +193,8 @@ export async function run(items, hooks) {
     while (RUN.token === token && next < todo.length) {
       const it = todo[next++];
       busy.add(it); hooks.onProgress({ done, total: todo.length, busy: [...busy], t0, cached });
-      let key = null;
-      try { const r = await analyse(it, w); key = r.key; if (r.cached) cached++; }
+      let key = null, fresh = false;
+      try { const r = await analyse(it, w); key = r.key; fresh = !r.cached; if (r.cached) cached++; }
       catch (e) { it.error = String(e?.message || e); }
       busy.delete(it);
       if (RUN.token !== token) return;
@@ -200,7 +202,7 @@ export async function run(items, hooks) {
       done++;
       hooks.onItem(it);
       hooks.onProgress({ done, total: todo.length, busy: [...busy], t0, cached });
-      if (key && !it.error) queueClip(it, key, hooks.onItem, token);
+      if (key && !it.error) queueClip(it, key, hooks.onItem, token, fresh);
     }
   }));
   if (RUN.token !== token) return;

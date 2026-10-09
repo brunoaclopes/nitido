@@ -1,9 +1,9 @@
 // @ts-check
 import { setLang, applyI18n, t, getLang } from "./i18n/index.js";
-import { S, SESSION, UI, saveSettings, resetTuning, loadSession, touchSession, on, emit } from "./app/state.js";
+import { S, SESSION, UI, saveSettings, resetTuning, loadSession, touchSession, flushSession, on, emit } from "./app/state.js";
 import { captureDrop, readDrop, readHandle, readInput, pickFolder, canWrite } from "./app/files.js";
 import { buildItems, run, stop, RUN } from "./app/pipeline.js";
-import { dropCache, cacheKey } from "./app/store.js";
+import { dropCache, cacheKey, getMeta, putMeta } from "./app/store.js";
 import { recompute, setManual, ready } from "./app/model.js";
 import { exportXmp, exportCsv, exportJson, exportMoveScripts } from "./app/exporter.js";
 import { sharpThreshold } from "./core/scoring.js";
@@ -146,6 +146,8 @@ async function startSession({ name, list, dir }, { keepDecisions = false } = {})
   SESSION.key = `${name}|${hashStr(items.slice(0, 40).map((i) => i.path).join("\n"))}`;
   UI.selection.clear(); UI.collapsed.clear(); UI.baseline = null;
   await loadSession(SESSION.key);
+  rememberFolder(name, dir, items.length);
+  takeView();
   // the same folder again: what is in memory is newer than what was last saved (and the key changes
   // when Finish has moved files out, as it is built from the file list)
   if (keepDecisions && prev.data) { SESSION.data = prev.data; touchSession(); }
@@ -196,6 +198,7 @@ const hooks = {
     layout();
     renderAll();
     if (!UI.baseline) fixBaseline(false);
+    applyView();
     // seconds per photo on this machine, for the estimate shown before the next run
     if (done - cached >= 5 && secs > 0) {
       const r = secs / (done - cached), old = S.rates?.[S.tier];
@@ -415,6 +418,75 @@ function bindExport() {
   });
 }
 
+/* ================================================================ surviving a refresh */
+// The folder is remembered (with its handle, where the browser gives one) and so is the view: filters,
+// sort, the photo at the top of the gallery and the one open in the loupe. Measurements are cached per
+// photo and decisions are saved as they are made, so a refresh only costs the reopening.
+const VIEW_KEY = "nitido-view";
+let pendingView = null;
+function rememberFolder(name, dir, n) { putMeta("last", { name, dir: dir || null, n, at: Date.now() }).catch(() => {}); }
+function saveView() {
+  flushSession();
+  if (!SESSION.key || app.dataset.state !== "session") return;
+  const top = $("#scroller").getBoundingClientRect().top + 8;
+  const anchor = visibleOrder().find((it) => it.card.getBoundingClientRect().bottom > top);
+  try {
+    sessionStorage.setItem(VIEW_KEY, JSON.stringify({ key: SESSION.key, filter: UI.filter, sort: /** @type {HTMLSelectElement} */ ($("#sortSel")).value,
+      anchor: anchor?.path || null, loupe: lbState.open ? lbState.it?.path : null }));
+  } catch {}
+}
+/** At the start of a session: the filters and sort of the same folder before the refresh. */
+function takeView() {
+  pendingView = null;
+  let v = null;
+  try { v = JSON.parse(sessionStorage.getItem(VIEW_KEY) || "null"); } catch {}
+  if (v?.key !== SESSION.key) return;
+  pendingView = v;
+  Object.assign(UI.filter, v.filter || {});
+  if (v.sort) /** @type {HTMLSelectElement} */ ($("#sortSel")).value = v.sort;
+  /** @type {HTMLInputElement} */ ($("#search")).value = UI.filter.search || "";
+}
+/** Once the photos are in: back to where you were. */
+function applyView() {
+  const v = pendingView; pendingView = null;
+  if (!v) return;
+  const find = (p) => p && SESSION.items.find((i) => i.path === p && i.ready && !i.error);
+  const a = find(v.anchor);
+  if (a?.card && !a.card.hidden) a.card.scrollIntoView({ block: "start" });
+  const l = find(v.loupe);
+  if (l) openLightbox(l, visibleOrder().filter((x) => x.ready));
+}
+async function resumeFolder(dir) {
+  beginLoading();
+  try { await startSession(await readHandle(dir, countFiles)); }
+  catch (e) { hideLoader(); app.dataset.state = "empty"; toast(t("err.read", { e: e?.message || e })); }
+}
+/** On the start screen: continue with the last folder. After a refresh it reopens by itself when the browser still allows it. */
+async function offerResume() {
+  const last = await getMeta("last").catch(() => null);
+  if (!last?.n || app.dataset.state !== "empty") return;
+  const reload = /** @type {PerformanceNavigationTiming|undefined} */ (performance.getEntriesByType?.("navigation")[0])?.type === "reload";
+  if (last.dir && reload && (await last.dir.queryPermission?.({ mode: "readwrite" }).catch(() => "")) === "granted") return resumeFolder(last.dir);
+  const btn = $("#resumeBtn");
+  btn.textContent = last.name ? t("resume.btn", { name: last.name }) : t("resume.last");
+  $("#resumeInfo").textContent = t(last.dir ? "resume.info" : "resume.infoPick", { n: last.n });
+  $("#resume").hidden = false;
+  $("#pickBtn").classList.remove("primary");
+  btn.onclick = async () => {
+    if (!last.dir) return openFolder();
+    try {
+      if ((await last.dir.requestPermission({ mode: "readwrite" })) !== "granted") return;
+      await resumeFolder(last.dir);
+    } catch { openFolder(); } // the folder was moved or renamed
+  };
+}
+function bindRefresh() {
+  addEventListener("pagehide", saveView);
+  document.addEventListener("visibilitychange", () => { if (document.hidden) saveView(); });
+  // moving files is the one thing a refresh should not cut short
+  addEventListener("beforeunload", (e) => { if (finishState.running) { e.preventDefault(); e.returnValue = ""; } });
+}
+
 /* ================================================================ theme */
 const THEME_COLOR = { dark: "#222224", light: "#ffffff", glass: "#0e0f13" };
 function applyTheme() {
@@ -591,7 +663,7 @@ function boot() {
   setLang(S.lang);
   applyI18n();
   applyTheme();
-  bindSide(); bindToolbar(); bindExport(); bindTheme(); bindInput(); bindLang(); bindKeys(); bindLightbox(); bindCompare(); bindCull(); bindFinish(); bindCalibration();
+  bindSide(); bindToolbar(); bindExport(); bindTheme(); bindRefresh(); bindInput(); bindLang(); bindKeys(); bindLightbox(); bindCompare(); bindCull(); bindFinish(); bindCalibration();
   $("#cullBtn").addEventListener("click", () => emit("cull", { only: "all" }));
   $("#finishBtn").addEventListener("click", () => { if (RUN.running) toast(t("export.wait")); else openFinish(); });
   loadTaste().then(renderPersonal);
@@ -600,6 +672,7 @@ function boot() {
     navigator.serviceWorker.register("sw.js").catch(() => {});
   if (!S.tier || !TIERS[S.tier]) { S.tier = suggested(); saveSettings(); }
   syncSide(); setDensity(); renderAi(); renderTier();
+  offerResume();
   window.addEventListener("resize", debounce(drawHist, 100));
   // the glass theme floats the toolbar over the photos: the gallery starts below it
   const main = $("#main"), tb = $(".toolbar"), sb = $("#selbar");

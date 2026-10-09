@@ -1,5 +1,6 @@
 export default {
   "theme.title": "Theme", "theme.dark": "Dark", "theme.darkHint": "Neutral greys, the best for judging colour", "theme.light": "Light", "theme.lightHint": "Bright neutral greys, for daylight", "theme.glass": "Liquid glass", "theme.glassHint": "Floating glass panels, in the style of macOS",
+  "resume.last": "Continue with the last folder", "resume.btn": "Continue with “{name}”", "resume.info": "{n} photos. Your decisions are kept and nothing is measured twice.", "resume.infoPick": "{n} photos last time. Choose the folder again to continue: your decisions are kept and nothing is measured twice.",
   "top.panel": "Tuning panel", "top.stop": "Stop", "top.search": "Search file", "top.export": "Export", "top.open": "Open another folder",
 
   "export.xmp": "XMP sidecars", "export.xmpHintDir": "Written next to the photos, merged with existing XMP",
