@@ -20,8 +20,9 @@ import { VERSION } from "./src/version.js";
 const root = fileURLToPath(new URL(".", import.meta.url));
 const args = process.argv.slice(2);
 const arg = (k) => (args.includes("--" + k) ? args[args.indexOf("--" + k) + 1] : undefined);
-const argPort = Number(arg("port"));
-let port = argPort || Number(process.env.PORT) || 4173;
+// --port 0 lets the system pick a free port (the tests use it); the first line printed says which
+const argPort = arg("port") != null ? Number(arg("port")) : NaN;
+let port = Number.isFinite(argPort) ? argPort : Number(process.env.PORT) || 4173;
 const host = process.env.HOST || "127.0.0.1";
 const dataDir = arg("data") || process.env.NITIDO_DATA || "";
 
@@ -167,11 +168,11 @@ const server = createServer(async (req, res) => {
 });
 
 server.on("error", (e) => {
-  if (/** @type {any} */ (e).code === "EADDRINUSE" && !argPort && port < 4200) { port++; server.listen(port, host); return; }
+  if (/** @type {any} */ (e).code === "EADDRINUSE" && !Number.isFinite(argPort) && port < 4200) { port++; server.listen(port, host); return; }
   console.error(e.message); process.exit(1);
 });
 server.listen(port, host, async () => {
-  const url = `http://${host === "0.0.0.0" ? "localhost" : host}:${port}/`;
+  const url = `http://${host === "0.0.0.0" ? "localhost" : host}:${/** @type {any} */ (server.address()).port}/`;
   const l = await local();
   console.log(`\n  Nítido ${VERSION} is running at ${url}`);
   let writable = true;

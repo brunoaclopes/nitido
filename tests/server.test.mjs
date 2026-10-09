@@ -11,12 +11,15 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const servers = [];
+// each server on a free port the system picks, read back from its first line
 async function start(env = {}, args = []) {
-  const port = 4800 + Math.floor(Math.random() * 900);
-  const p = spawn(process.execPath, [join(ROOT, "server.mjs"), "--port", String(port), ...args], { env: { ...process.env, ...env }, stdio: ["ignore", "pipe", "inherit"] });
+  const p = spawn(process.execPath, [join(ROOT, "server.mjs"), "--port", "0", ...args], { env: { ...process.env, ...env }, stdio: ["ignore", "pipe", "inherit"] });
   servers.push(p);
-  await new Promise((r) => p.stdout.on("data", (d) => String(d).includes("running") && r()));
-  return `http://127.0.0.1:${port}/`;
+  let out = "";
+  return new Promise((resolve, reject) => {
+    p.stdout.on("data", (d) => { out += d; const m = out.match(/running at (http:\/\/\S+)/); if (m) resolve(m[1]); });
+    p.on("exit", (code) => reject(new Error(`server exited (${code}): ${out}`)));
+  });
 }
 const config = async (base) => {
   const js = await (await fetch(base + "config.js")).text();
