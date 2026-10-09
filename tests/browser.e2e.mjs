@@ -105,6 +105,35 @@ listeners.push((m) => {
 });
 await page("Runtime.enable"); await page("Log.enable"); await page("Page.enable"); await page("DOM.enable");
 
+/* ---------- privacy: every request the page and its workers make, for the whole run ---------- */
+// Nothing may be sent: only downloads (GET) of the app, its font, the libraries and the AI models.
+const DOWNLOADS_FROM = /^(cdn\.jsdelivr\.net|storage\.googleapis\.com|fonts\.googleapis\.com|fonts\.gstatic\.com|huggingface\.co|([a-z0-9-]+\.)*hf\.co)$/;
+const requests = [];
+listeners.push((m) => {
+  if (m.method === "Target.attachedToTarget") {
+    const child = m.params.sessionId; // a worker
+    send("Network.enable", {}, child).catch(() => {});
+    send("Runtime.runIfWaitingForDebugger", {}, child).catch(() => {});
+  }
+  if (m.method === "Network.requestWillBeSent") {
+    const { url, method, hasPostData } = m.params.request;
+    if (!/^(data|blob):/.test(url)) requests.push({ url, method, body: !!hasPostData });
+  }
+});
+await page("Network.enable");
+await page("Target.setAutoAttach", { autoAttach: true, waitForDebuggerOnStart: false, flatten: true });
+function checkPrivacy() {
+  const own = new URL(BASE).host, hosts = new Map(), bad = [];
+  for (const r of requests) {
+    const h = new URL(r.url).host;
+    hosts.set(h, (hosts.get(h) || 0) + 1);
+    if (!["GET", "HEAD"].includes(r.method) || r.body || (h !== own && !DOWNLOADS_FROM.test(h))) bad.push(`${r.method} ${r.url.slice(0, 120)}`);
+  }
+  const list = [...hosts].map(([h, n]) => `${h === own ? "the app" : h} ${n}`).join(", ");
+  bad.length ? fail(`requests that are not plain downloads: ${[...new Set(bad)].slice(0, 8).join("; ")}`)
+    : ok(`nothing sent anywhere: all ${requests.length} requests are downloads (${list})`);
+}
+
 const evaluate = async (expression) => {
   const r = await page("Runtime.evaluate", { expression, awaitPromise: true, returnByValue: true });
   if (r.exceptionDetails) throw new Error(r.exceptionDetails.exception?.description || r.exceptionDetails.text);
@@ -541,6 +570,7 @@ try {
   await shot("99-failure").catch(() => {});
 }
 
+checkPrivacy();
 if (problems.length) for (const p of [...new Set(problems)]) fail(p);
 else ok("no page errors");
 printAudit();
