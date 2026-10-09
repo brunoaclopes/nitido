@@ -14,6 +14,7 @@ import { clipStatus, onClipStatus } from "./ml/clip.js";
 import { $, $$, esc, fmtNum, fmtDuration, toast, revokeAll } from "./ui/dom.js";
 import { renderToolbar, layout, refresh, appendLive, visibleOrder, setDensity } from "./ui/gallery.js";
 import { drawHist, bindHist } from "./ui/histogram.js";
+import { ask } from "./ui/confirm.js";
 import { setLiquidGlass } from "./ui/glass.js";
 import { setWallpaper } from "./ui/wallpaper.js";
 import { openLightbox, closeLightbox, render as renderLb, step, stepGroup, zoomFocus, toggleView, bindLightbox, lbState } from "./ui/lightbox.js";
@@ -332,7 +333,7 @@ function bindSide() {
   $("#collapseAll").addEventListener("click", () => { for (const g of SESSION.groups) if (g.members.length > 1) UI.collapsed.add(g.anchor); refresh(); });
   $("#expandAll").addEventListener("click", () => { UI.collapsed.clear(); refresh(); });
   $("#forgetBtn").addEventListener("click", async () => {
-    if (!confirm(t("ai.forgetConfirm"))) return;
+    if (!(await ask({ title: t("ai.forgetConfirm"), body: t("dlg.forgetBody"), ok: t("dlg.forget"), danger: true }))) return;
     await forgetTaste(); syncSide(); recompute(); renderAll(); toast(t("ai.forgotten"));
   });
   $("#calibBtn").addEventListener("click", () => { if (!openCalibration()) toast(t("cal.need")); });
@@ -342,7 +343,9 @@ function bindSide() {
     if (SESSION.items.length) toast(t("tier.changed", { tier: t("tier." + S.tier) }), 8000);
   });
   $("#baseBtn").addEventListener("click", () => fixBaseline(true));
-  $("#resetBtn").addEventListener("click", () => { resetTuning(); syncSide(); if (SESSION.items.length) { recompute({ regroup: true }); layout(); renderAll(); } toast(t("cmp.resetDone")); });
+  $("#resetBtn").addEventListener("click", async () => {
+    if (!(await ask({ title: t("dlg.resetTitle"), body: t("dlg.resetBody"), ok: t("dlg.reset") }))) return;
+    resetTuning(); syncSide(); if (SESSION.items.length) { recompute({ regroup: true }); layout(); renderAll(); } toast(t("cmp.resetDone")); });
 }
 
 /* ================================================================ toolbar, selection, gallery clicks */
@@ -526,6 +529,7 @@ function setSide(open) {
 async function reanalyse() {
   if (!SESSION.items.length) return;
   if (RUN.running) { toast(t("export.wait")); return; }
+  if (!(await ask({ title: t("dlg.reanalyseTitle", { n: SESSION.items.length }), body: t("dlg.reanalyseBody"), ok: t("top.reanalyse") }))) return;
   const old = SESSION.items;
   await dropCache(old.flatMap((it) => [cacheKey(it.path, it.file, S.tier)]));
   let src = null;

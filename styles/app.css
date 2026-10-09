@@ -366,6 +366,13 @@ input[type=range].density{width:90px;flex:none}
 .modal{position:fixed;inset:0;z-index:48;background:var(--scrim);display:grid;place-items:center;padding:16px}
 .modal-card{width:min(560px,100%);max-height:calc(100vh - 32px);overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 18px 18px;display:grid;gap:12px}
 .modal-card.wide{width:min(680px,100%)}
+.modal.confirm{z-index:60}
+.confirm-card{width:min(420px,100%);gap:8px;padding:20px 20px 16px}
+.confirm-card h2{font-size:16px;line-height:1.35;margin:0}
+.confirm-card p{margin:0;color:var(--ink-2);font-size:13px}
+.confirm-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:10px}
+.btn.primary.danger{background:#c62828;border-color:#c62828;color:#fff}
+.btn.primary.danger:hover{filter:brightness(1.08)}
 .calib-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px}
 .cal-pic{position:relative}
 .cal-pic img{display:block;width:100%;aspect-ratio:1;object-fit:cover;border-radius:4px;background:var(--bed)}

@@ -2,6 +2,7 @@
 /** "Finish": puts the classified session in order on disk, without Lightroom.
  *  Keepers go to a destination folder (a NAS share, an archive disk), rejects to a folder or the bin. */
 import { $, esc, fmtBytes, toast } from "./dom.js";
+import { ask } from "./confirm.js";
 import { t } from "../i18n/index.js";
 import { S, SESSION, saveSettings, emit } from "../app/state.js";
 import { ready } from "../app/model.js";
@@ -103,7 +104,7 @@ async function writable(h) {
 
 async function start() {
   const o = opts(), p = plan(ready(), o);
-  if (o.rejects === "delete" && p.reject.length && !confirm(t("fin.confirmDelete", { n: p.reject.length }))) return;
+  if (o.rejects === "delete" && p.reject.length && !(await ask({ title: t("fin.confirmDelete", { n: p.reject.length }), body: t("dlg.noUndo"), ok: t("dlg.delete"), danger: true }))) return;
   const destOk = F.dest ? await writable(F.dest) : false;
   const srcOk = o.rejects === "leave" || await writable(SESSION.dir);
   if ((F.dest && !destOk) || !srcOk) { toast(t("fin.noPermission")); return; }
@@ -148,7 +149,7 @@ export function bindFinish() {
       toast(t("fin.scriptDone"), 9000);
     } else if (a === "empty") {
       const folder = opts().rejectFolder;
-      if (!confirm(t("fin.confirmEmpty", { folder }))) return;
+      if (!(await ask({ title: t("fin.confirmEmpty", { folder }), body: t("dlg.noUndo"), ok: t("dlg.delete"), danger: true }))) return;
       try { const n = await emptyRejectFolder(SESSION.dir, folder); toast(t("fin.emptied", { n })); b.remove(); }
       catch (err) { toast(t("err.generic", { e: err?.message || err })); }
     }

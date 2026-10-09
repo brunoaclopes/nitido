@@ -140,6 +140,7 @@ console.log("finish dialog:", els.finishBody.innerHTML.includes("data-a=\"script
 fin.closeFinish();
 // reanalyse: every photo decoded again (no cache), decisions kept
 const decodesBefore = decodes, decided = SESSION.items.filter((i) => i.manual?.flag).map((i) => i.path).sort().join();
+(await import("../src/ui/confirm.js")).dialogs.answer = true;
 els.reanalyseBtn._l.click[0]();
 await new Promise((r) => setTimeout(r, 1500));
 const decidedAfter = SESSION.items.filter((i) => i.manual?.flag).map((i) => i.path).sort().join();

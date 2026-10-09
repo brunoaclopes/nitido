@@ -1,6 +1,7 @@
 export default {
   "theme.title": "Tema", "theme.dark": "Escuro", "theme.darkHint": "Cinzentos neutros, o melhor para julgar a cor", "theme.light": "Claro", "theme.lightHint": "Cinzentos neutros claros, para a luz do dia", "theme.glass": "Vidro líquido", "theme.glassHint": "Painéis de vidro flutuantes, ao estilo do macOS",
   "resume.last": "Continuar com a última pasta", "resume.btn": "Continuar com “{name}”", "resume.info": "{n} fotos. As tuas decisões ficam guardadas e nada é medido duas vezes.", "resume.infoPick": "{n} fotos da última vez. Escolhe a pasta outra vez para continuar: as tuas decisões ficam guardadas e nada é medido duas vezes.",
+  "dlg.cancel": "Cancelar", "dlg.delete": "Apagar", "dlg.noUndo": "Não dá para desfazer.", "dlg.forget": "Esquecer", "dlg.forgetBody": "Volta a aprender a partir das tuas próximas decisões.", "dlg.reset": "Repor", "dlg.resetTitle": "Repor os ajustes predefinidos?", "dlg.resetBody": "A exigência e os ajustes de foco, pessoas e grupos voltam aos valores predefinidos. As tuas decisões ficam.", "dlg.reanalyseTitle": "Medir outra vez as {n} fotos?", "dlg.reanalyseBody": "Os resultados guardados são descartados e cada foto é medida de raiz, o que demora tanto como a primeira análise. As tuas decisões, estrelas e edições de grupos ficam.",
   "top.panel": "Painel de afinação", "top.stop": "Parar", "top.search": "Procurar ficheiro", "top.export": "Exportar", "top.open": "Abrir outra pasta",
 
   "export.xmp": "Sidecars XMP", "export.xmpHintDir": "Grava ao lado das fotos e junta-se aos XMP existentes",
@@ -198,9 +199,9 @@ export default {
   "fin.doneNothing": "Nada para fazer.",
   "fin.errors": "Problemas",
   "fin.empty": "Esvaziar “{folder}” de vez",
-  "fin.confirmEmpty": "Apagar de vez tudo o que está em “{folder}”? Não dá para desfazer.",
+  "fin.confirmEmpty": "Apagar de vez tudo o que está em “{folder}”?",
   "fin.emptied": "1 ficheiro apagado.|{n} ficheiros apagados.",
-  "fin.confirmDelete": "Apagar de vez 1 foto rejeitada (JPEG, RAF e XMP)? Não dá para desfazer.|Apagar de vez {n} fotos rejeitadas (JPEG, RAF e XMP)? Não dá para desfazer.",
+  "fin.confirmDelete": "Apagar de vez 1 foto rejeitada (JPEG, RAF e XMP)?|Apagar de vez {n} fotos rejeitadas (JPEG, RAF e XMP)?",
   "fin.noPermission": "O Nítido não teve autorização para escrever na pasta. Autoriza quando o browser perguntar.",
   "ai.tasteInfo": "Aprendeu com 1 decisão tua ({k} mantida, {r} rejeitada) em {s} sessões.|Aprendeu com {n} decisões tuas ({k} mantidas, {r} rejeitadas) em {s} sessões.",
   "ai.tasteNone": "Aprende com cada foto que manténs ou rejeitas à mão, em todas as sessões.",

@@ -1,6 +1,7 @@
 export default {
   "theme.title": "Theme", "theme.dark": "Dark", "theme.darkHint": "Neutral greys, the best for judging colour", "theme.light": "Light", "theme.lightHint": "Bright neutral greys, for daylight", "theme.glass": "Liquid glass", "theme.glassHint": "Floating glass panels, in the style of macOS",
   "resume.last": "Continue with the last folder", "resume.btn": "Continue with “{name}”", "resume.info": "{n} photos. Your decisions are kept and nothing is measured twice.", "resume.infoPick": "{n} photos last time. Choose the folder again to continue: your decisions are kept and nothing is measured twice.",
+  "dlg.cancel": "Cancel", "dlg.delete": "Delete", "dlg.noUndo": "This cannot be undone.", "dlg.forget": "Forget", "dlg.forgetBody": "It starts learning again from your next decisions.", "dlg.reset": "Reset", "dlg.resetTitle": "Reset the tuning to the defaults?", "dlg.resetBody": "Strictness, focus, people and group settings go back to their defaults. Your decisions are kept.", "dlg.reanalyseTitle": "Measure all {n} photos again?", "dlg.reanalyseBody": "The saved results are dropped and every photo is measured from scratch, which takes as long as the first analysis. Your decisions, stars and group edits are kept.",
   "top.panel": "Tuning panel", "top.stop": "Stop", "top.search": "Search file", "top.export": "Export", "top.open": "Open another folder",
 
   "export.xmp": "XMP sidecars", "export.xmpHintDir": "Written next to the photos, merged with existing XMP",
@@ -198,9 +199,9 @@ export default {
   "fin.doneNothing": "Nothing to do.",
   "fin.errors": "Problems",
   "fin.empty": "Empty “{folder}” for good",
-  "fin.confirmEmpty": "Delete everything in “{folder}” for good? This cannot be undone.",
+  "fin.confirmEmpty": "Delete everything in “{folder}” for good?",
   "fin.emptied": "1 file deleted.|{n} files deleted.",
-  "fin.confirmDelete": "Delete 1 rejected photo (JPEG, RAF and XMP) for good? This cannot be undone.|Delete {n} rejected photos (JPEG, RAF and XMP) for good? This cannot be undone.",
+  "fin.confirmDelete": "Delete 1 rejected photo (JPEG, RAF and XMP) for good?|Delete {n} rejected photos (JPEG, RAF and XMP) for good?",
   "fin.noPermission": "Nítido was not allowed to write to the folder. Allow it when the browser asks.",
   "ai.tasteInfo": "Learned from 1 of your decisions ({k} kept, {r} rejected) over {s} shoots.|Learned from {n} of your decisions ({k} kept, {r} rejected) over {s} shoots.",
   "ai.tasteNone": "It learns from every photo you keep or reject by hand, across all your shoots.",

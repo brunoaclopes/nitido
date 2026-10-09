@@ -195,9 +195,10 @@ try {
   await until(`document.readyState === "complete" && !!document.querySelector("#picker")`, 20000, "page load");
   // a clean start: no folder to resume from an earlier run
   await evaluate(`import(new URL("src/app/store.js", location.href).href).then(({ putMeta }) => putMeta("last", null)).then(() => (sessionStorage.clear(), true))`);
+  // the page holds the database open, so the delete waits for the reload below (and is done before the app opens it again)
+  if (!flag("keep-cache")) await evaluate(`new Promise((r) => { const q = indexedDB.deleteDatabase("nitido"); q.onsuccess = q.onerror = q.onblocked = () => r(true); })`);
   await evaluate(`localStorage.setItem("nitido-v3", JSON.stringify({ lang: "en", tier: ${JSON.stringify(opt("tier", "standard"))}, theme: ${JSON.stringify(opt("theme", "dark"))} })), location.reload(), true`).catch(() => {});
   await until(`document.readyState === "complete" && document.querySelector("[data-lang=en]")?.getAttribute("aria-pressed") === "true"`, 20000, "English UI");
-  if (!flag("keep-cache")) await evaluate(`new Promise((r) => { const q = indexedDB.deleteDatabase("nitido"); q.onsuccess = q.onerror = q.onblocked = () => r(true); })`);
   await shot("01-empty-1440");
   await audit("empty");
   ok("empty screen");
@@ -277,7 +278,13 @@ try {
   await evaluate(`import(new URL("src/app/state.js", location.href).href).then(({ SESSION, emit }) => { emit("manual", { items: [SESSION.items.find((i) => i.ready && !i.error)], patch: { flag: "reject" } }); return true; })`);
   await sleep(600);
   const flagged = await evaluate(`import(new URL("src/app/state.js", location.href).href).then(({ SESSION }) => SESSION.items.filter((i) => i.manual?.flag === "reject").map((i) => i.path).join())`);
-  await click("#reanalyseBtn");
+  await click("#reanalyseBtn"); await sleep(300);
+  // our own dialog asks first (no browser confirm)
+  const dlg = await evaluate(`document.querySelector(".modal.confirm h2")?.textContent || ""`);
+  dlg ? ok(`Reanalyse asks first: “${dlg}”`) : fail("Reanalyse did not ask for confirmation");
+  await shot("04-confirm");
+  await audit("confirm dialog");
+  await click('.modal.confirm [data-a="yes"]');
   await until(`document.querySelector("#app").dataset.state !== "session" || !document.querySelector("#progress").hidden`, 20000, "reanalysis to start");
   await until(`document.querySelector("#app").dataset.state === "session" && document.querySelector("#progress").hidden && /\d/.test(document.querySelector("#toast").textContent)`, 30 * 60000, "reanalysis");
   await sleep(800);
