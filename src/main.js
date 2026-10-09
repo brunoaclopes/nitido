@@ -1,11 +1,13 @@
 // @ts-check
 import { setLang, applyI18n, t, getLang } from "./i18n/index.js";
-import { S, SESSION, UI, saveSettings, resetTuning, loadSession, touchSession, flushSession, on, emit } from "./app/state.js";
+import { S, SESSION, UI, SERVER, saveSettings, resetTuning, loadSession, touchSession, flushSession, on, emit } from "./app/state.js";
 import { captureDrop, readDrop, readHandle, readInput, pickFolder, canWrite } from "./app/files.js";
 import { buildItems, run, stop, RUN } from "./app/pipeline.js";
 import { dropCache, cacheKey, getMeta, putMeta } from "./app/store.js";
 import { recompute, setManual, ready } from "./app/model.js";
-import { exportXmp, exportCsv, exportJson, exportMoveScripts } from "./app/exporter.js";
+import { exportXmp, exportCsv, exportJson, exportMoveScripts, download } from "./app/exporter.js";
+import { snapshot, applyProfile, isProfile, decisionsIn } from "./app/profile.js";
+import { sync, onSync, startSync, listProfiles, switchProfile, NAME_RULE } from "./app/sync.js";
 import { sharpThreshold } from "./core/scoring.js";
 import { hashStr, debounce } from "./core/util.js";
 import { visionStatus } from "./ml/vision.js";
@@ -96,7 +98,11 @@ const MACHINE = machine();
 const suggested = () => suggestTier({ ...MACHINE, rate: S.rates?.standard });
 function renderTier() {
   const sug = suggested(), tier = S.tier || sug;
-  $$("#tierSeg button").forEach((b) => { b.setAttribute("aria-pressed", String(b.dataset.v === tier)); b.classList.toggle("suggested", b.dataset.v === sug); });
+  $$("#tierSeg button").forEach((b) => {
+    b.setAttribute("aria-pressed", String(b.dataset.v === tier)); b.classList.toggle("suggested", b.dataset.v === sug);
+    const here = !SERVER.localOnly || SERVER.localTiers.includes(b.dataset.v);
+    /** @type {HTMLButtonElement} */ (b).disabled = !here; b.title = here ? "" : t("tier.notHere");
+  });
   $("#tierInfo").textContent = t("tier.desc." + tier, { mb: TIERS[tier].mb });
   const why = [MACHINE.mobile ? t("tier.phone") : null, t("tier.cores", { n: MACHINE.cores }),
     MACHINE.memory != null ? t(MACHINE.memory >= 8 ? "tier.memory" : "tier.memoryLow", { gb: MACHINE.memory }) : null,
@@ -150,6 +156,8 @@ async function startSession({ name, list, dir }, { keepDecisions = false } = {})
   UI.selection.clear(); UI.collapsed.clear(); UI.baseline = null;
   await loadSession(SESSION.key);
   rememberFolder(name, dir, items.length);
+  // months of decisions and the personal model live in this storage: ask the browser not to clear it under disk pressure
+  navigator.storage?.persist?.().catch(() => {});
   takeView();
   // the same folder again: what is in memory is newer than what was last saved (and the key changes
   // when Finish has moved files out, as it is built from the file list)
@@ -597,7 +605,7 @@ function bindInput() {
 /* ================================================================ language */
 function bindLang() {
   $$(".lang button").forEach((b) => b.addEventListener("click", () => {
-    S.lang = b.dataset.lang; saveSettings(); setLang(S.lang); applyI18n(); syncSide(); renderTier();
+    S.lang = b.dataset.lang; saveSettings(); setLang(S.lang); applyI18n(); syncSide(); renderTier(); renderSync();
     if (SESSION.items.length) { recompute(); layout(); renderAll(); }
     if (SESSION.items.length) renderSessionInfo();
     renderAi();
@@ -666,12 +674,58 @@ function bindKeys() {
   });
 }
 
+/* ================================================================ profile: a file, or this server */
+function renderSync() {
+  $("#syncBox").hidden = !sync.on;
+  if (!sync.on) return;
+  const n = /** @type {HTMLInputElement} */ ($("#syncName"));
+  if (document.activeElement !== n) n.value = sync.name;
+  const time = sync.at ? new Date(sync.at).toLocaleTimeString(getLang(), { hour: "numeric", minute: "2-digit" }) : "";
+  $("#syncInfo").textContent = sync.state === "saving" ? t("sync.saving") : sync.state === "offline" ? t("sync.offline")
+    : sync.state === "saved" && time ? t("sync.saved", { time }) : t("sync.idle");
+}
+function bindProfile() {
+  $("#profSave").addEventListener("click", async () => {
+    const day = new Date().toISOString().slice(0, 10), file = `nitido-profile-${day}.json`;
+    download(file, JSON.stringify(await snapshot(), null, 1), "application/json");
+    toast(t("prof.saved", { file }));
+  });
+  const input = /** @type {HTMLInputElement} */ ($("#profFile"));
+  $("#profLoad").addEventListener("click", () => input.click());
+  input.addEventListener("change", async () => {
+    const f = input.files?.[0]; input.value = "";
+    if (!f) return;
+    let p = null;
+    try { p = JSON.parse(await f.text()); } catch {}
+    if (!isProfile(p)) { toast(t("prof.bad")); return; }
+    if (!(await ask({ title: t("prof.loadTitle"), body: t("prof.loadBody", { n: decisionsIn(p) }), ok: t("prof.loadOk") }))) return;
+    await applyProfile(p, { add: true });
+    location.reload(); // every panel, the language and the theme from the profile at once (the session survives a reload)
+  });
+  if (!sync.on) return;
+  onSync(renderSync);
+  const n = /** @type {HTMLInputElement} */ ($("#syncName"));
+  n.addEventListener("focus", async () => { $("#syncNames").innerHTML = (await listProfiles()).map((x) => `<option value="${esc(x)}">`).join(""); });
+  n.addEventListener("change", async () => {
+    const name = n.value.trim();
+    if (name === sync.name) return;
+    if (!NAME_RULE.test(name)) { toast(t("sync.badName")); n.value = sync.name; return; }
+    if (!(await ask({ title: t("sync.switchTitle", { name }), body: t("sync.switchBody"), ok: t("sync.switch") }))) { n.value = sync.name; return; }
+    const r = await switchProfile(name).catch(() => null);
+    if (r === "loaded") location.reload();
+    else { toast(t("sync.created", { name })); renderSync(); }
+  });
+  renderSync();
+}
+
 /* ================================================================ boot */
-function boot() {
+async function boot() {
+  // a self-hosted server with profiles: its copy of the settings applies before anything is drawn
+  await startSync().catch(() => false);
   setLang(S.lang);
   applyI18n();
   applyTheme();
-  bindSide(); bindToolbar(); bindExport(); bindTheme(); bindRefresh(); bindInput(); bindLang(); bindKeys(); bindLightbox(); bindCompare(); bindCull(); bindFinish(); bindCalibration();
+  bindSide(); bindToolbar(); bindExport(); bindTheme(); bindRefresh(); bindInput(); bindLang(); bindKeys(); bindLightbox(); bindCompare(); bindCull(); bindFinish(); bindCalibration(); bindProfile();
   $("#cullBtn").addEventListener("click", () => emit("cull", { only: "all" }));
   $("#finishBtn").addEventListener("click", () => { if (RUN.running) toast(t("export.wait")); else openFinish(); });
   loadTaste().then(renderPersonal);
@@ -687,5 +741,7 @@ function boot() {
   const measure = () => { main.style.setProperty("--tbh", tb.offsetHeight + "px"); main.style.setProperty("--sbh", (sb.hidden ? 0 : sb.offsetHeight + 8) + "px"); };
   if ("ResizeObserver" in window) { const ro = new ResizeObserver(measure); ro.observe(tb); ro.observe(sb); }
   if (location.protocol === "file:") toast(t("err.fileProtocol"), 15000);
+  // plain HTTP from another computer: the browser withholds folder access, writing and offline use
+  if (!window.isSecureContext && location.protocol === "http:") $("#insecure").hidden = false;
 }
 boot();

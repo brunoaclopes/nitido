@@ -8,7 +8,7 @@
 // when analysis does not finish, or when a photo ends in error. Screenshots of the gallery, the
 // loupe and the compare view are written at desktop, tablet and phone widths.
 import { spawn } from "node:child_process";
-import { mkdtempSync, mkdirSync, readdirSync, existsSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readdirSync, existsSync, writeFileSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir, homedir } from "node:os";
 import { join, resolve, extname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -46,7 +46,9 @@ console.log(`${chosen.size} photos (${files.length} files) from ${PHOTOS}`);
 /* ---------- server and browser ---------- */
 // --url tests a deployed copy (e.g. GitHub Pages) instead of a local server
 const port = 4300 + Math.floor(Math.random() * 500), BASE = (opt("url") || `http://127.0.0.1:${port}/`).replace(/\/?$/, "/");
-const server = opt("url") ? { kill() {} } : spawn(process.execPath, [join(ROOT, "server.mjs"), "--port", String(port)], { stdio: "ignore" });
+// the local server keeps profiles in a throwaway data folder, as a self-hosted copy does
+const DATA = mkdtempSync(join(tmpdir(), "nitido-data-"));
+const server = opt("url") ? { kill() {} } : spawn(process.execPath, [join(ROOT, "server.mjs"), "--port", String(port), "--data", DATA], { stdio: "ignore" });
 const profile = mkdtempSync(join(tmpdir(), "nitido-chrome-"));
 const chrome = spawn(CHROME, [
   flag("headed") ? "" : "--headless=new", "--remote-debugging-port=0", `--user-data-dir=${profile}`,
@@ -56,6 +58,7 @@ let cleaned = false;
 function cleanup() {
   if (cleaned) return; cleaned = true;
   try { chrome.kill(); } catch {} try { server.kill(); } catch {}
+  try { rmSync(DATA, { recursive: true, force: true }); } catch {}
   setTimeout(() => { try { rmSync(profile, { recursive: true, force: true }); } catch {} }, 300);
 }
 process.on("exit", cleanup);
@@ -116,22 +119,32 @@ listeners.push((m) => {
     send("Runtime.runIfWaitingForDebugger", {}, child).catch(() => {});
   }
   if (m.method === "Network.requestWillBeSent") {
-    const { url, method, hasPostData } = m.params.request;
-    if (!/^(data|blob):/.test(url)) requests.push({ url, method, body: !!hasPostData });
+    const { url, method, hasPostData, postData } = m.params.request;
+    if (!/^(data|blob):/.test(url)) requests.push({ url, method, body: !!hasPostData, postData, sid: m.sessionId, id: m.params.requestId });
   }
 });
 await page("Network.enable");
 await page("Target.setAutoAttach", { autoAttach: true, waitForDebuggerOnStart: false, flatten: true });
-function checkPrivacy() {
+async function checkPrivacy() {
   const own = new URL(BASE).host, hosts = new Map(), bad = [];
+  let saves = 0, saved = 0;
   for (const r of requests) {
-    const h = new URL(r.url).host;
+    const u = new URL(r.url), h = u.host;
+    // the one thing that may be sent: a profile or a shoot's decisions, as JSON, to the server the page came from
+    if (r.method === "PUT" && h === own && u.pathname.startsWith("/api/")) {
+      const body = r.postData ?? (await send("Network.getRequestPostData", { requestId: r.id }, r.sid).then((x) => x.postData, () => ""));
+      let doc = null; try { doc = JSON.parse(body); } catch {}
+      if (doc && typeof doc === "object" && !/data:image|base64,|"thumb|"blob/i.test(body) && body.length < 2e6) { saves++; saved += body.length; continue; }
+      bad.push(`PUT ${u.pathname} with a body that is not a small JSON document (${body.length} bytes)`); continue;
+    }
     hosts.set(h, (hosts.get(h) || 0) + 1);
     if (!["GET", "HEAD"].includes(r.method) || r.body || (h !== own && !DOWNLOADS_FROM.test(h))) bad.push(`${r.method} ${r.url.slice(0, 120)}`);
   }
+  writeFileSync(join(SHOTS, "requests.json"), JSON.stringify(requests, null, 1));
   const list = [...hosts].map(([h, n]) => `${h === own ? "the app" : h} ${n}`).join(", ");
   bad.length ? fail(`requests that are not plain downloads: ${[...new Set(bad)].slice(0, 8).join("; ")}`)
-    : ok(`nothing sent anywhere: all ${requests.length} requests are downloads (${list})`);
+    : ok(`nothing sent anywhere${saves ? " but the profile, to this server" : ""}: ${requests.length - saves} downloads (${list})` +
+      (saves ? `, ${saves} profile saves (JSON, ${(saved / 1024).toFixed(0)} KB in all, no image)` : ""));
 }
 
 const evaluate = async (expression) => {
@@ -504,7 +517,7 @@ try {
   await click("#helpClose");
 
   /* ---------- export (the menu, without writing into the photo folder) ---------- */
-  await page("Browser.setDownloadBehavior", { behavior: "allow", downloadPath: SHOTS }, undefined).catch(() => {});
+  await send("Browser.setDownloadBehavior", { behavior: "allow", downloadPath: SHOTS }).catch(() => {});
   await click("#exportBtn"); await sleep(200); await shot("09-export-menu");
   // the top bar's menus must sit above the toolbar and the gallery (every point of them clickable)
   const covered = async (menu) => evaluate(`(() => { const m = document.querySelector(${JSON.stringify(menu)}); if (m.hidden) return "not open";
@@ -523,6 +536,47 @@ try {
   const leftovers = await evaluate(`[...document.querySelectorAll("body *")].filter((n) => !n.children.length && /^[a-z]+(\\.[a-zA-Z]+)+$/.test(n.textContent.trim())).map((n) => n.textContent.trim()).slice(0, 10)`);
   leftovers.length ? fail("untranslated keys on screen: " + leftovers.join(", ")) : ok("no raw i18n keys on screen");
   await click('[data-lang="en"]'); await sleep(300);
+
+  /* ---------- your profile: a file, and this server ---------- */
+  await click('#side details:has(#profSave) > summary').catch(() => {});
+  const before = readdirSync(SHOTS).filter((f) => f.startsWith("nitido-profile")).length;
+  await click("#profSave"); await sleep(1500);
+  const saved = readdirSync(SHOTS).filter((f) => f.startsWith("nitido-profile-") && f.endsWith(".json"));
+  const prof = saved.length > before || saved.length ? JSON.parse(readFileSync(join(SHOTS, saved.sort().at(-1)), "utf8")) : null;
+  prof?.kind === "nitido-profile" && prof.settings && !("tier" in prof.settings) ? ok(`profile saved to a file (${Object.keys(prof.taste.samples).length} decisions, ${Object.keys(prof.settings).length} settings, no photo)`)
+    : fail("profile file missing or wrong: " + JSON.stringify(prof)?.slice(0, 200));
+  if (prof) {
+    const { result: pin } = await page("Runtime.evaluate", { expression: `document.querySelector("#profFile")` });
+    await page("DOM.setFileInputFiles", { objectId: pin.objectId, files: [join(SHOTS, saved.sort().at(-1))] });
+    await sleep(400);
+    const q = await evaluate(`document.querySelector(".modal.confirm h2")?.textContent || ""`);
+    q ? ok(`loading a profile asks first: “${q}”`) : fail("loading a profile did not ask");
+    await click('.modal.confirm [data-a="no"]').catch(() => {});
+  }
+  const cfg = await evaluate(`({ ...(window.NITIDO || {}) })`);
+  if (cfg.sync) {
+    // a setting changed here reaches the server, and a second browser starts with it
+    await click('#strictSeg [data-v="strict"]'); await sleep(2500);
+    const onServer = await evaluate(`fetch("api/profiles/default", { cache: "no-store" }).then((r) => r.json())`);
+    const shoots = existsSync(join(DATA, "sessions", "default")) ? readdirSync(join(DATA, "sessions", "default")) : [];
+    const decided = shoots.some((f) => /"flag":"(pick|reject)"/.test(readFileSync(join(DATA, "sessions", "default", f), "utf8")));
+    onServer.settings?.strictness === "strict" && decided ? ok(`the profile and the shoot's decisions are kept on the server (${shoots.length} shoot)`)
+      : fail(`server copy: strictness ${onServer.settings?.strictness}, shoots ${shoots.length}, decided ${decided}`);
+    const { browserContextId } = await send("Target.createBrowserContext", {});
+    const { targetId: t2 } = await send("Target.createTarget", { url: BASE, browserContextId });
+    const { sessionId: s2 } = await send("Target.attachToTarget", { targetId: t2, flatten: true });
+    let other = "";
+    for (let i = 0; i < 30 && !other; i++) {
+      await sleep(500);
+      const r = await send("Runtime.evaluate", { expression: `document.querySelector('#strictSeg [aria-pressed="true"]')?.dataset.v || ""`, returnByValue: true }, s2).catch(() => null);
+      other = r?.result?.value || "";
+    }
+    other === "strict" ? ok("another browser opening this server starts with the same profile") : fail(`the other browser has strictness ${other || "(none)"}`);
+    await send("Target.disposeBrowserContext", { browserContextId }).catch(() => {});
+    await click('#strictSeg [data-v="normal"]');
+  }
+  await evaluate(`(() => { const d = document.querySelector("#profSave").closest("details"); d.open = true; document.querySelector("#profSave").scrollIntoView({ block: "center" }); return true; })()`);
+  await sleep(300); await shot("16-profile"); await audit("profile");
 
   /* ---------- a refresh mid-session ---------- */
   // a decision made just before the refresh (inside the save delay), a filter, and a photo open in the loupe
@@ -570,7 +624,7 @@ try {
   await shot("99-failure").catch(() => {});
 }
 
-checkPrivacy();
+await checkPrivacy();
 if (problems.length) for (const p of [...new Set(problems)]) fail(p);
 else ok("no page errors");
 printAudit();

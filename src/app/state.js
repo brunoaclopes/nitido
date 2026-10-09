@@ -20,11 +20,23 @@ export const DEFAULTS = {
 function load() {
   try { return JSON.parse(localStorage.getItem(KEY) || "{}"); } catch { return {}; }
 }
-export const S = { ...structuredClone(DEFAULTS), ...load() };
+/** What the hosting server says (config.js): its defaults for a new browser, whether it keeps profiles,
+ *  and which AI models it stores. Empty on GitHub Pages. */
+export const SERVER = (() => {
+  const c = /** @type {any} */ (globalThis).NITIDO || {};
+  const d = c.defaults && typeof c.defaults === "object" ? c.defaults : {};
+  // only settings the app knows, of the type it expects
+  const defaults = Object.fromEntries(Object.entries(d).filter(([k, v]) => k in DEFAULTS && k !== "organize" && (DEFAULTS[k] === null || typeof v === typeof DEFAULTS[k])));
+  if (d.organize && typeof d.organize === "object") defaults.organize = Object.fromEntries(Object.entries(d.organize).filter(([k, v]) => typeof v === typeof DEFAULTS.organize[k]));
+  return { sync: !!c.sync, defaults, localTiers: Array.isArray(c.localTiers) ? c.localTiers : [], localOnly: !!c.localOnly };
+})();
+const saved = load();
+export const S = { ...structuredClone(DEFAULTS), ...structuredClone(SERVER.defaults), ...saved };
 S.ai = { ...DEFAULTS.ai, ...(S.ai || {}) };
-S.organize = { ...DEFAULTS.organize, ...(S.organize || {}) };
+S.organize = { ...DEFAULTS.organize, ...(SERVER.defaults.organize || {}), ...(saved.organize || {}) };
 export function saveSettings() {
   try { localStorage.setItem(KEY, JSON.stringify(S)); } catch {}
+  emit("settings");
 }
 export function resetTuning() {
   for (const k of [...Object.keys(SCORING), ...Object.keys(GROUP_DEFAULTS)]) S[k] = structuredClone(DEFAULTS[k]);
@@ -45,13 +57,26 @@ export const SESSION = {
   data: { manual: {}, groupNames: {}, edits: { detach: [], split: [], join: [] }, model: null },
 };
 let saveTimer = 0;
-const saveNow = () => { saveTimer = 0; if (SESSION.key) putSession(SESSION.key, SESSION.data); };
+const saveNow = () => {
+  saveTimer = 0;
+  if (!SESSION.key) return;
+  SESSION.data.at = Date.now();
+  putSession(SESSION.key, SESSION.data);
+  remote.putSession?.(SESSION.key, SESSION.data);
+};
+/** A copy of each shoot's decisions on the hosting server, when it keeps profiles (sync.js fills this in). */
+export const remote = {
+  /** @type {null | ((key: string) => Promise<any>)} */ getSession: null,
+  /** @type {null | ((key: string, data: any) => void)} */ putSession: null,
+};
 // saved straight after each change (a burst of changes in one go is one write): a refresh loses nothing
 export function touchSession() { clearTimeout(saveTimer); saveTimer = setTimeout(saveNow, 0); }
 /** Writes a pending save at once (before the page goes away). */
 export function flushSession() { if (saveTimer) { clearTimeout(saveTimer); saveNow(); } }
 export async function loadSession(key) {
-  const d = await getSession(key);
+  const [mine, theirs] = await Promise.all([getSession(key), remote.getSession?.(key).catch(() => null)]);
+  // the newer copy wins: decisions made on another computer, or here since the last upload
+  const d = theirs?.at > (mine?.at || 0) ? theirs : mine;
   SESSION.data = {
     manual: {}, groupNames: {}, edits: { detach: [], split: [], join: [] }, model: null,
     ...(d || {}),

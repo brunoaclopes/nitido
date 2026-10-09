@@ -1,0 +1,37 @@
+# Nítido on your own server: docker compose up -d
+# Profiles (settings, personal model, decisions) are kept in ./data. Photos never reach the server.
+services:
+  nitido:
+    image: ghcr.io/brunoaclopes/nitido:latest   # or build: .
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data:/data
+    environment:
+      # defaults for a browser opening Nítido for the first time (each person can still change them)
+      # PUID: 1000                 # the owner of ./data on your NAS (id -u), and its group (id -g)
+      # PGID: 1000
+      NITIDO_LANG: en              # en | pt
+      NITIDO_THEME: dark           # dark | light | glass
+      # NITIDO_TIER: standard      # light | standard | heavy | max (otherwise suggested per computer)
+      # NITIDO_STRICTNESS: normal  # relaxed | normal | strict
+      # NITIDO_LAYOUT: date        # Finish: folder | date | flat
+      # NITIDO_REVIEW: keep        # Finish, photos still to review: keep | leave | reject
+      # NITIDO_REJECTS: move       # Finish, rejects: move | delete | leave
+      # NITIDO_XMP: "true"         # Finish: copy XMP sidecars too
+
+  # HTTPS for your network (the browser needs it for folder access and writing to the NAS):
+  # docker compose --profile https up -d, then open https://nitido.local or your own name.
+  caddy:
+    profiles: [https]
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "443:443"
+    command: caddy reverse-proxy --from ${NITIDO_HOST:-nitido.local} --to nitido:8080 --internal-certs
+    volumes:
+      - caddy:/data
+
+volumes:
+  caddy:

@@ -4,7 +4,7 @@
  *  "Reject the rest of the group" decisions are left out: those frames are redundant, not bad. */
 import { featuresOf, train } from "../core/learn.js";
 import { getMeta, putMeta } from "./store.js";
-import { S, SESSION, saveSettings } from "./state.js";
+import { S, SESSION, saveSettings, emit } from "./state.js";
 import { debounce } from "../core/util.js";
 
 const T = { samples: /** @type {Record<string, {x: number[], y: number, s: string}>} */ ({}), model: null, loaded: false };
@@ -18,7 +18,15 @@ export async function loadTaste() {
   T.loaded = true;
   retrain();
 }
-const save = debounce(() => putMeta("taste", { samples: T.samples }).catch(() => {}), 800);
+const save = debounce(() => { putMeta("taste", { samples: T.samples }).catch(() => {}); emit("taste"); }, 800);
+
+/** Replaces the examples (a profile loaded from a file or from the server), or adds to them. */
+export async function setSamples(samples, { add = false } = {}) {
+  await loadTaste();
+  T.samples = add ? { ...T.samples, ...samples } : { ...samples };
+  await putMeta("taste", { samples: T.samples }).catch(() => {});
+  retrain();
+}
 
 export function featuresFor(it) {
   const ev = it.ev;
@@ -62,4 +70,5 @@ export async function forget() {
   T.samples = {}; T.model = null; SESSION.data.model = null;
   S.usePersonal = false; saveSettings();
   await putMeta("taste", { samples: {} }).catch(() => {});
+  emit("taste");
 }

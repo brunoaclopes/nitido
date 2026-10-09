@@ -4,3 +4,4 @@ models/
 
 # third-party Claude Code skills, kept local (licences vary)
 .claude/skills/
+data/

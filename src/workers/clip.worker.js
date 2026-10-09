@@ -18,9 +18,11 @@ const norm = (v) => { let s = 0; for (const x of v) s += x * x; s = Math.sqrt(s)
 const dot = (a, b) => { let s = 0; for (let i = 0; i < a.length; i++) s += a[i] * b[i]; return s; };
 const rows = (t) => { const [n, d] = t.dims; return Array.from({ length: n }, (_, i) => norm(t.data.slice(i * d, (i + 1) * d))); };
 
-async function init({ libUrl, model, family: fam = "clip", localModelPath }) {
+async function init({ libUrl, wasmPaths, model, family: fam = "clip", localModelPath }) {
   family = fam;
   T = await import(libUrl);
+  // the ONNX runtime's own files: next to the library when it is stored on this server
+  if (wasmPaths) T.env.backends.onnx.wasm.wasmPaths = wasmPaths;
   T.env.allowLocalModels = !!localModelPath;
   if (localModelPath) T.env.localModelPath = localModelPath;
   T.env.allowRemoteModels = true;

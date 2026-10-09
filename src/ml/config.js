@@ -23,16 +23,20 @@ async function local() {
   if (m?.faceModel) files[REMOTE.faceModel] = m.faceModel;
   if (m?.objectModel) files[tierOf("standard").objects] = m.objectModel;
   const clip = Array.isArray(m?.clip) ? m.clip : m?.clip ? ["Xenova/clip-vit-base-patch32"] : [];
-  manifest = { base, files, clip };
+  manifest = { base, files, clip, libs: m?.libs || {} };
   return manifest;
 }
 
-/** Model locations for a tier: { mediapipe, mediapipeWasm, faceModel, objectModel|null, transformers, clipModel|null, localModelPath|null } */
+/** Model locations for a tier: { mediapipe, mediapipeWasm, faceModel, objectModel|null, transformers, wasmPaths|null, clipModel|null, localModelPath|null } */
 export async function modelConfig(tier = "standard") {
   const t = tierOf(tier), m = await local();
   const at = (url) => (url && m.files[url] ? m.base + m.files[url] : url);
+  // the libraries too, when npm run models stored them here
+  const mp = m.libs.mediapipe ? m.base + m.libs.mediapipe : null, tf = m.libs.transformers ? m.base + m.libs.transformers : null;
   return {
     ...REMOTE, faceModel: at(REMOTE.faceModel), objectModel: t.objects ? at(t.objects) : null,
+    ...(mp ? { mediapipe: mp + "vision_bundle.mjs", mediapipeWasm: mp + "wasm" } : {}),
+    ...(tf ? { transformers: tf + "transformers.min.js" } : {}), wasmPaths: tf,
     clipModel: t.clip?.id || null, clipFamily: t.clip?.family || "clip",
     localModelPath: t.clip && m.clip.includes(t.clip.id) ? m.base + "hf/" : null,
   };

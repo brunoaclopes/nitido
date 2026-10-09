@@ -1,4 +1,9 @@
 /* Nítido — neutral greys so photos are judged without a colour cast; colour is reserved for verdicts. */
+/* Instrument Sans (SIL Open Font License, fonts/OFL.txt), served with the app: no font service sees a visit */
+@font-face{font-family:"Instrument Sans";font-style:normal;font-weight:400 600;font-display:swap;src:url(../fonts/instrument-sans-latin-ext.woff2) format("woff2");
+  unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C4,U+2113,U+2C60-2C7F,U+A720-A7FF}
+@font-face{font-family:"Instrument Sans";font-style:normal;font-weight:400 600;font-display:swap;src:url(../fonts/instrument-sans-latin.woff2) format("woff2");
+  unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
 :root{
   --bg:#1b1b1c; --panel:#222224; --raised:#2a2a2d; --hover:#323236; --line:#343438; --bed:#141415;
   --ink:#ececec; --ink-2:#b9b9bd; --ink-3:#9a9a9f;
@@ -129,6 +134,9 @@ input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;bac
 .resume{margin:0 auto 14px}
 .resume p{margin:8px auto 0;font-size:12px;color:var(--ink-3);max-width:46ch}
 .drop .fine{font-size:12px;color:var(--ink-3);margin:22px auto 0}
+.drop .notice{max-width:56ch;margin:0 auto 18px;padding:10px 14px;border-radius:8px;font-size:13px;text-align:left;color:var(--ink);background:color-mix(in srgb,var(--doubt) 14%,transparent);border:1px solid color-mix(in srgb,var(--doubt) 45%,transparent)}
+#syncBox .field{margin-bottom:4px}
+#syncBox{margin-bottom:10px}
 
 /* ---------- loader: the AF frame hunts for focus ---------- */
 .loader .inner{width:min(480px,100%);text-align:center}

@@ -30,14 +30,14 @@ Nítido has no backend. The site is a handful of static files; once your browser
 
 - **Your photos are read, not sent.** The browser opens the folder you choose and the app reads the files from disk. There is no upload code and no server to upload to.
 - **The AI runs locally.** Face, eye and subject detection (MediaPipe) and the similarity model (MobileCLIP or SigLIP) run inside the browser, in web workers and WebAssembly. The models are downloaded *to* you, like any file; your photos are never sent *to* them.
-- **Your work stays in your browser.** Measurements, small thumbnails, your decisions and your personal taste model live in the browser's own storage on your computer. Clearing the site's data removes all of it.
+- **Your work stays in your browser.** Measurements, small thumbnails, your decisions and your personal taste model live in the browser's own storage on your computer. Nítido asks the browser not to clear that storage when the disk fills up. Clearing the site's data yourself removes all of it, and *Save to a file* keeps your settings and personal model as a backup.
 - **Your files go straight to your disk.** *Finish* copies the keepers to your NAS or archive drive over your own network, with no cloud in between.
 - **No accounts, no analytics, no cookies, no tracking.**
 - **Works offline.** Install it from the address bar. After the first analysis, you can turn Wi-Fi off and cull a whole shoot.
 
 ```mermaid
 flowchart LR
-  NET(["Internet<br/>the app · a font · open-source libraries · AI models"]) -- "downloaded once, then cached" --> TAB
+  NET(["Internet<br/>the app · open-source libraries · AI models"]) -- "downloaded once, then cached" --> TAB
   subgraph PC["Your computer"]
     direction LR
     CARD[("Shoot folder<br/>JPEG + RAF")] -- read --> TAB["Browser tab<br/>decode · blur · faces · similarity"]
@@ -50,11 +50,12 @@ flowchart LR
 
 ### Don't take our word for it
 
-- **Watch the network.** Open DevTools → *Network* and analyse a folder. You will only see downloads (`GET`) of the app, its font, the libraries and the models. No request carries a photo or anything else from your computer.
+- **Watch the network.** Open DevTools → *Network* and analyse a folder. You will only see downloads (`GET`) of the app, the libraries and the models. No request carries a photo or anything else from your computer.
 - **Pull the plug.** Once the models are cached, analyse a shoot with the network off. It works the same.
-- **The tests check it.** The browser test records every request a full session makes, from the page and its workers: analysing, culling, reanalysing, sorting files, exporting. The run fails if any request is not a plain download from those sources. A 12-photo run against the published site made 390 requests, and every one was a download, from the app's own host and four known sources. The full list is in [`tests/browser.e2e.mjs`](tests/browser.e2e.mjs).
+- **The browser enforces it.** The page carries a Content-Security-Policy that lets it connect only to its own site, the library CDN and the model hosts. Even a bug or a compromised library could not send a photo anywhere else: the browser would block the request.
+- **The tests check it.** The browser test records every request a full session makes, from the page and its workers: analysing, culling, reanalysing, sorting files, exporting. The run fails if any request is not a plain download from those sources. A 12-photo run against the published site made 400 requests, and every one was a download, from the app's own host and three known sources. The full list is in [`tests/browser.e2e.mjs`](tests/browser.e2e.mjs).
 
-The servers that host the app, the font and the models (GitHub Pages, Google Fonts, jsDelivr, Google's model storage and Hugging Face) see a request from your IP address, as with any website. They never see a photo. To skip them after the first visit, run Nítido locally with the models kept on disk (`npm run models`, see [Use it](#use-it)).
+The servers that host the app, the libraries and the models (GitHub Pages, jsDelivr, Google's model storage and Hugging Face) see a request from your IP address, as with any website. They never see a photo. The font comes with the app, so no font service sees your visit. To skip the other hosts entirely, [run Nítido on your own server](#run-it-on-your-server), where everything comes from that server.
 
 ## What it does
 
@@ -75,6 +76,7 @@ The servers that host the app, the font and the models (GitHub Pages, Google Fon
 - **Compare with synced zoom:** zoom stays in step across the photos you compare.
 - **XMP sidecars:** stars, colour labels and keywords for Lightroom, if you use it.
 - **Survives a refresh:** reload in the middle of a shoot and nothing is lost.
+- **Your profile in a file:** settings and personal model, to back up or move to another browser.
 - **Three themes:** Dark, Light and a Liquid glass theme that really bends light.
 - **Two languages:** English and Portuguese.
 
@@ -86,7 +88,7 @@ The servers that host the app, the font and the models (GitHub Pages, Google Fon
 
 ```sh
 npm start            # opens http://127.0.0.1:4173
-npm run models       # optional: keep the AI models in ./models, so nothing is fetched from model hosts
+npm run models       # optional: keep the AI models and libraries in ./models, so nothing comes from their hosts
 ```
 
 **Nothing is lost.**
@@ -110,6 +112,62 @@ npm run models       # optional: keep the AI models in ./models, so nothing is f
 
 <sub>*Measured on a 12-core Mac. The similarity model runs in the background while the photos are measured.<br>
 SigLIP and SigLIP 2 are the Pareto-optimal models in [Immich's search benchmark](https://docs.immich.app/features/searching): 81.9% and 84.9% recall, against 69.9% for OpenAI's ViT-B/32. MobileCLIP is Apple's lighter family, also ahead of ViT-B/32. Each model's similarity scale was calibrated on X-H2 bursts. `npm run models -- heavy` keeps a tier's models for offline use.</sub>
+
+## Run it on your server
+
+On a home server or a NAS, one container holds the app, every AI model and the libraries. The page then makes no request outside your server, and your profile lives there too.
+
+```sh
+docker run -d --name nitido -p 8080:8080 -v ./data:/data ghcr.io/brunoaclopes/nitido
+```
+
+Or use `docker compose up -d` with the [docker-compose.yml](docker-compose.yml) in this repository. The image is built for amd64 and arm64 (Synology, Raspberry Pi and the like). Then serve it over [HTTPS](#https-on-your-network).
+
+What you get over the public site:
+- **Your profile follows you.** Your settings, your personal model and each shoot's decisions are kept on the server, as JSON files in `/data`.
+  - Open Nítido in another browser or on another computer and you start with the same settings and model.
+  - Open the same folder there and your decisions are waiting.
+  - Each person can keep their own profile: type a name in *Profile on this server*. There are no accounts.
+  - Photos and thumbnails never go to the server; only those small JSON documents do.
+- **Nothing leaves your network.** With every model inside the image, the server's Content-Security-Policy lets the page talk to that server only. The browser test checks this too. A 12-photo session on a self-hosted copy made 535 requests, all to its own server. The only thing sent was 11 KB of profile saves (JSON, no image).
+- **Defaults for your household or studio**, for browsers opening Nítido for the first time. Everyone can still change their own.
+
+| Variable | Values | Sets |
+| --- | --- | --- |
+| `NITIDO_LANG` | `en`, `pt` | Language |
+| `NITIDO_THEME` | `dark`, `light`, `glass` | Theme |
+| `NITIDO_TIER` | `light`, `standard`, `heavy`, `max` | AI tier (otherwise suggested for each computer) |
+| `NITIDO_STRICTNESS` | `relaxed`, `normal`, `strict` | How sharp a keeper must be |
+| `NITIDO_LAYOUT` | `folder`, `date`, `flat` | Finish: where the keepers go |
+| `NITIDO_REVIEW` | `keep`, `leave`, `reject` | Finish: photos still to review |
+| `NITIDO_REJECTS` | `move`, `delete`, `leave` | Finish: rejects |
+| `NITIDO_XMP` | `true`, `false` | Finish: copy XMP sidecars too |
+| `NITIDO_DEFAULTS` | JSON | Any other setting, e.g. `{"groupSim":0.7}` |
+| `NITIDO_LOCAL_ONLY` | `1` | Allow only the AI tiers stored in the image |
+| `PUID`, `PGID` | user and group ids | Owner of `/data` on your NAS (default 1000) |
+
+**Keep it on your network.** The server has no login: anyone who can reach it can open the profiles on it, though never a photo, since none are there. That is fine at home or behind Tailscale. To expose it to the internet, put it behind a proxy that asks for a password.
+
+**A smaller image.** The full image is about 1 GB. To build one with fewer tiers, run `docker build --build-arg TIERS=standard -t nitido .`; with only the Light tier it is about 300 MB. A tier that isn't inside is downloaded from its hosts when someone picks it, unless `NITIDO_LOCAL_ONLY=1` turns it off.
+
+**Without Docker:**
+
+```sh
+npm run models -- all
+HOST=0.0.0.0 node server.mjs --data ./data
+```
+
+### HTTPS on your network
+
+Chrome and Edge give folder access, writing and offline use only to HTTPS pages (or `localhost`). Opened as `http://nas:8080` from another computer, Nítido still analyses photos you choose, but it cannot:
+- open a folder directly;
+- write the keepers to your NAS;
+- work offline.
+
+It says so on its start screen. Any of these fixes it:
+- **Tailscale:** run `tailscale serve --bg 8080` on the server and open `https://<machine>.<tailnet>.ts.net`, with a real certificate.
+- **A reverse proxy you already run:** Synology's, Nginx Proxy Manager, Traefik or Caddy, with a certificate for your domain.
+- **The compose file's Caddy service:** run `docker compose --profile https up -d` and open `https://nitido.local` (or set `NITIDO_HOST`). Caddy signs the certificate with its own authority, so install its root certificate on your computers once: `docker compose cp caddy:/data/caddy/pki/authorities/local/root.crt .`
 
 ## A shoot, start to finish
 
@@ -210,9 +268,9 @@ npm run test:browser -- --photos ~/some-shoot --url https://brunoaclopes.github.
 node scripts/readme-shots.mjs --photos ~/some-shoot --names DSCF0001,…           # regenerate these screenshots
 ```
 
-**Hosting.** It is a static site, and a push to `main` deploys it to GitHub Pages. To host it yourself, there is still no server-side code to run:
-- with Docker: `docker build -t nitido . && docker run -p 8080:80 nitido`;
-- or upload `index.html`, `sw.js`, `manifest.webmanifest`, `icon.svg`, `styles/` and `src/` to any HTTPS host.
+**Hosting.** The app is a static site, and a push to `main` deploys it to GitHub Pages and publishes the Docker image.
+- **Any static host:** upload `index.html`, `config.js`, `sw.js`, `manifest.webmanifest`, `icon.svg`, `styles/`, `fonts/` and `src/`, over HTTPS.
+- **Your own server:** [`server.mjs`](server.mjs) adds the profiles, the defaults and the stricter policy (see [Run it on your server](#run-it-on-your-server)). It has no dependencies, and its tests are in `tests/server.test.mjs`.
 
 ---
 
@@ -230,17 +288,18 @@ O Nítido não tem backend. O site é um punhado de ficheiros estáticos; depois
 
 - **As fotos são lidas, não enviadas.** O browser abre a pasta que escolhes e a app lê os ficheiros do disco. Não há código de upload nem servidor para onde enviar.
 - **A IA corre localmente.** A deteção de rostos, olhos e sujeitos (MediaPipe) e o modelo de semelhança (MobileCLIP ou SigLIP) correm dentro do browser, em web workers e WebAssembly. Os modelos são descarregados *para* ti, como qualquer ficheiro; as fotos nunca são enviadas *para* eles.
-- **O teu trabalho fica no browser.** As medições, as miniaturas, as tuas decisões e o teu modelo pessoal ficam guardados no próprio browser, no teu computador. Apagar os dados do site remove tudo.
+- **O teu trabalho fica no browser.** As medições, as miniaturas, as tuas decisões e o teu modelo pessoal ficam guardados no próprio browser, no teu computador. O Nítido pede ao browser que não apague esse espaço quando o disco enche. Apagar tu os dados do site remove tudo, e *Guardar num ficheiro* faz uma cópia das definições e do modelo pessoal.
 - **Os ficheiros vão diretos para o teu disco.** *Concluir* copia as fotos para o teu NAS ou disco de arquivo pela tua rede, sem nuvem pelo meio.
 - **Sem contas, sem estatísticas, sem cookies, sem rastreio.**
 - **Funciona offline.** Instala-a a partir da barra de endereço. Depois da primeira análise, podes desligar o Wi-Fi e triar uma sessão inteira.
 
 **Confirma tu mesmo.**
-- Abre as DevTools → *Network* e analisa uma pasta: só vês descarregamentos (`GET`) da app, da fonte, das bibliotecas e dos modelos.
+- Abre as DevTools → *Network* e analisa uma pasta: só vês descarregamentos (`GET`) da app, das bibliotecas e dos modelos.
 - Com os modelos em cache, desliga a rede: a análise funciona na mesma.
+- A página tem uma Content-Security-Policy que só a deixa ligar-se ao próprio site, à CDN das bibliotecas e aos servidores dos modelos: nem um erro nem uma biblioteca comprometida conseguiriam enviar uma foto para outro lado.
 - O teste de browser regista todos os pedidos de uma sessão completa e falha se algum não for um simples descarregamento.
 
-Os servidores que alojam a app, a fonte e os modelos veem um pedido vindo do teu IP, como em qualquer site, mas nunca uma foto.
+Os servidores que alojam a app, as bibliotecas e os modelos veem um pedido vindo do teu IP, como em qualquer site, mas nunca uma foto. A fonte vem com a app. Para não depender de nenhum deles, corre o Nítido no teu servidor (abaixo).
 
 ### Usar
 
@@ -250,7 +309,7 @@ Os servidores que alojam a app, a fonte e os modelos veem um pedido vindo do teu
 
 ```sh
 npm start            # abre http://127.0.0.1:4173
-npm run models       # opcional: guarda os modelos em ./models, para não os ir buscar a nenhum servidor
+npm run models       # opcional: guarda os modelos e as bibliotecas em ./models, para não os ir buscar a lado nenhum
 ```
 
 **Nada se perde.**
@@ -270,6 +329,24 @@ npm run models       # opcional: guarda os modelos em ./models, para não os ir 
 - **Máximo:** SigLIP 2 B/16, ~405 MB.
 
 A app sugere um nível para o teu computador. Os tempos medidos estão [na tabela em inglês](#use-it).
+
+### No teu servidor
+
+Num servidor de casa ou num NAS, um contentor leva a app, todos os modelos de IA e as bibliotecas. A página não faz nenhum pedido fora do teu servidor, e o teu perfil fica lá também:
+
+```sh
+docker run -d --name nitido -p 8080:8080 -v ./data:/data ghcr.io/brunoaclopes/nitido
+```
+
+- **O perfil acompanha-te.** As definições, o modelo pessoal e as decisões de cada sessão ficam no servidor, em ficheiros JSON em `/data`.
+  - Noutro browser ou noutro computador começas com as mesmas definições, e na mesma pasta as tuas decisões estão lá.
+  - Cada pessoa pode ter o seu perfil, sem contas.
+  - Fotos e miniaturas nunca vão para o servidor.
+- **Nada sai da tua rede:** a política de segurança do servidor só deixa a página falar com ele.
+- **Mantém-no na tua rede:** o servidor não tem login. Quem lhe chegar pode abrir os perfis, mas nunca uma foto. Para o expores à internet, põe à frente um proxy com palavra-passe.
+- **Predefinições:** as variáveis `NITIDO_*` definem-nas para quem abre o Nítido pela primeira vez. A tabela está [na versão inglesa](#run-it-on-your-server).
+
+O browser só dá acesso às pastas, escrita no NAS e uso offline a páginas HTTPS. Usa o Tailscale (`tailscale serve --bg 8080`), um reverse proxy com certificado, ou o Caddy do `docker-compose.yml` (`docker compose --profile https up -d`). Os detalhes estão [na versão inglesa](#https-on-your-network).
 
 ### Uma sessão, do início ao fim
 

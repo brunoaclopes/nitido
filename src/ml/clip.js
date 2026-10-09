@@ -44,7 +44,7 @@ export function initClip(tier = "standard") {
     };
     worker.onerror = (e) => { clipStatus.state = "error"; clipStatus.error = e.message || "worker"; onChange(); };
     clipStatus.state = "loading"; onChange();
-    await call("init", { cfg: { libUrl: cfg.transformers, model: cfg.clipModel, family: cfg.clipFamily, localModelPath: cfg.localModelPath } });
+    await call("init", { cfg: { libUrl: cfg.transformers, wasmPaths: cfg.wasmPaths, model: cfg.clipModel, family: cfg.clipFamily, localModelPath: cfg.localModelPath } });
     clipStatus.state = "ready"; clipStatus.progress = 1; onChange();
   })().catch((e) => { const off = e?.message === "no-clip"; clipStatus.state = off ? "off" : "error"; clipStatus.error = off ? "" : String(e?.message || e); onChange(); throw e; });
   return ready;

@@ -2,15 +2,15 @@
 <html lang="pt-PT">
 <head>
 <meta charset="utf-8">
+<!-- The page may only download: the app, the libraries and the AI models. Nothing it could send would get out. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-Pq7gKl2WWuN7qPLFLQNHLDH+7GJcTRrK28h1rrtiNY8=' 'wasm-unsafe-eval' https://cdn.jsdelivr.net; worker-src 'self' blob:; connect-src 'self' blob: data: https://cdn.jsdelivr.net https://storage.googleapis.com https://huggingface.co https://*.huggingface.co https://*.hf.co; img-src 'self' blob: data:; media-src 'self' blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="dark">
 <meta name="theme-color" content="#1a1a1b">
-<script>try{var t=JSON.parse(localStorage.getItem("nitido-v3")||"{}").theme;if(t==="light"||t==="glass")document.documentElement.dataset.theme=t}catch(e){}</script>
+<script src="config.js"></script>
+<script>try{var t=JSON.parse(localStorage.getItem("nitido-v3")||"{}").theme||((window.NITIDO||{}).defaults||{}).theme;if(t==="light"||t==="glass")document.documentElement.dataset.theme=t}catch(e){}</script>
 <title>Nítido</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 22 22'%3E%3Cpath d='M1 7V1h6M15 1h6v6M21 15v6h-6M7 21H1v-6' fill='none' stroke='%23ececec' stroke-width='2'/%3E%3Ccircle cx='11' cy='11' r='2.5' fill='none' stroke='%235fd394' stroke-width='2'/%3E%3C/svg%3E">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon.svg">
 <link rel="stylesheet" href="styles/app.css">
@@ -74,6 +74,7 @@
         <h1 data-i18n="empty.title"></h1>
         <p data-i18n="empty.lead"></p>
         <div class="resume" id="resume" hidden><button class="btn primary" id="resumeBtn"></button><p id="resumeInfo"></p></div>
+        <p class="notice" id="insecure" role="note" data-i18n="insecure" hidden></p>
         <button class="btn primary" id="pickBtn" data-i18n="empty.pick"></button>
         <ul class="features">
           <li data-i18n="empty.f1"></li><li data-i18n="empty.f2"></li><li data-i18n="empty.f3"></li><li data-i18n="empty.f4"></li>
@@ -182,6 +183,16 @@
       <p class="hint" id="personalInfo"></p>
       <label class="check"><input type="checkbox" id="f-usePersonal"> <span data-i18n="ai.usePersonal"></span></label>
       <div class="row-btns"><button class="btn small quiet" id="forgetBtn" data-i18n="ai.forget"></button></div>
+      <h3 class="sub" data-i18n="prof.title"></h3>
+      <div id="syncBox" hidden>
+        <label class="field col"><span class="label" data-i18n="sync.name"></span>
+          <input class="text" id="syncName" list="syncNames" autocomplete="off" spellcheck="false" maxlength="40"></label>
+        <datalist id="syncNames"></datalist>
+        <p class="hint" id="syncInfo" aria-live="polite"></p>
+      </div>
+      <p class="hint" data-i18n="prof.hint"></p>
+      <div class="row-btns"><button class="btn small" id="profSave" data-i18n="prof.save"></button><button class="btn small" id="profLoad" data-i18n="prof.load"></button></div>
+      <input type="file" id="profFile" accept=".json,application/json" hidden>
     </details>
 
     <details class="group">
