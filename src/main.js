@@ -415,6 +415,27 @@ function bindExport() {
   });
 }
 
+/* ================================================================ theme */
+const THEME_COLOR = { dark: "#222224", light: "#ffffff", glass: "#0e0f13" };
+function applyTheme() {
+  const th = THEME_COLOR[S.theme] ? S.theme : "dark";
+  if (th === "dark") delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = th;
+  $('meta[name="theme-color"]')?.setAttribute("content", THEME_COLOR[th]);
+  $$("#themeMenu [data-theme]").forEach((b) => b.setAttribute("aria-checked", String(b.dataset.theme === th)));
+  requestAnimationFrame(drawHist);
+}
+function bindTheme() {
+  const menu = $("#themeMenu"), btn = $("#themeBtn");
+  const close = () => { menu.hidden = true; btn.setAttribute("aria-expanded", "false"); };
+  btn.addEventListener("click", (e) => { e.stopPropagation(); menu.hidden = !menu.hidden; btn.setAttribute("aria-expanded", String(!menu.hidden)); });
+  document.addEventListener("click", (e) => { if (!$("#themeWrap").contains(/** @type {Node} */ (e.target))) close(); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !menu.hidden) { close(); btn.focus(); } });
+  menu.addEventListener("click", (e) => {
+    const b = /** @type {HTMLElement} */ (e.target).closest("[data-theme]"); if (!b) return;
+    S.theme = b.dataset.theme; saveSettings(); applyTheme(); close();
+  });
+}
+
 /** The tuning panel as a drawer (narrow screens): open or close it. */
 function setSide(open) {
   app.classList.toggle("side-open", open);
@@ -462,6 +483,8 @@ function bindInput() {
   $("#pickBtn").addEventListener("click", openFolder);
   $("#openBtn").addEventListener("click", openFolder);
   $("#reanalyseBtn").addEventListener("click", reanalyse);
+  $("#sideOpen").addEventListener("click", () => { setSide(false); openFolder(); });
+  $("#sideReanalyse").addEventListener("click", () => { setSide(false); reanalyse(); });
   $("#reanalyseSide").addEventListener("click", reanalyse);
   const picker = /** @type {HTMLInputElement} */ ($("#picker"));
   picker.addEventListener("change", () => {
@@ -567,7 +590,8 @@ function bindKeys() {
 function boot() {
   setLang(S.lang);
   applyI18n();
-  bindSide(); bindToolbar(); bindExport(); bindInput(); bindLang(); bindKeys(); bindLightbox(); bindCompare(); bindCull(); bindFinish(); bindCalibration();
+  applyTheme();
+  bindSide(); bindToolbar(); bindExport(); bindTheme(); bindInput(); bindLang(); bindKeys(); bindLightbox(); bindCompare(); bindCull(); bindFinish(); bindCalibration();
   $("#cullBtn").addEventListener("click", () => emit("cull", { only: "all" }));
   $("#finishBtn").addEventListener("click", () => { if (RUN.running) toast(t("export.wait")); else openFinish(); });
   loadTaste().then(renderPersonal);
@@ -577,6 +601,10 @@ function boot() {
   if (!S.tier || !TIERS[S.tier]) { S.tier = suggested(); saveSettings(); }
   syncSide(); setDensity(); renderAi(); renderTier();
   window.addEventListener("resize", debounce(drawHist, 100));
+  // the glass theme floats the toolbar over the photos: the gallery starts below it
+  const main = $("#main"), tb = $(".toolbar"), sb = $("#selbar");
+  const measure = () => { main.style.setProperty("--tbh", tb.offsetHeight + "px"); main.style.setProperty("--sbh", (sb.hidden ? 0 : sb.offsetHeight + 8) + "px"); };
+  if ("ResizeObserver" in window) { const ro = new ResizeObserver(measure); ro.observe(tb); ro.observe(sb); }
   if (location.protocol === "file:") toast(t("err.fileProtocol"), 15000);
 }
 boot();

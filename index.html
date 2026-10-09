@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="dark">
 <meta name="theme-color" content="#1a1a1b">
+<script>try{var t=JSON.parse(localStorage.getItem("nitido-v3")||"{}").theme;if(t==="light"||t==="glass")document.documentElement.dataset.theme=t}catch(e){}</script>
 <title>Nítido</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 22 22'%3E%3Cpath d='M1 7V1h6M15 1h6v6M21 15v6h-6M7 21H1v-6' fill='none' stroke='%23ececec' stroke-width='2'/%3E%3Ccircle cx='11' cy='11' r='2.5' fill='none' stroke='%235fd394' stroke-width='2'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -38,6 +39,16 @@
     </label>
     <div class="seg lang" role="group" aria-label="Language">
       <button data-lang="pt">PT</button><button data-lang="en">EN</button>
+    </div>
+    <div class="menu-wrap theme-wrap" id="themeWrap">
+      <button class="icon-btn theme-btn" id="themeBtn" aria-haspopup="menu" aria-expanded="false" data-i18n-attr="aria-label:theme.title;title:theme.title">
+        <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><circle cx="9" cy="9" r="6.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M9 2.5a6.5 6.5 0 0 1 0 13z" fill="currentColor"/></svg>
+      </button>
+      <div class="menu theme" id="themeMenu" role="menu" hidden>
+        <button role="menuitemradio" data-theme="dark"><span><b data-i18n="theme.dark"></b><span data-i18n="theme.darkHint"></span></span><i class="sw" style="--sw:#222224"></i></button>
+        <button role="menuitemradio" data-theme="light"><span><b data-i18n="theme.light"></b><span data-i18n="theme.lightHint"></span></span><i class="sw" style="--sw:#f3f3f4"></i></button>
+        <button role="menuitemradio" data-theme="glass"><span><b data-i18n="theme.glass"></b><span data-i18n="theme.glassHint"></span></span><i class="sw" style="--sw:linear-gradient(135deg,rgba(118,138,255,.7),rgba(240,120,200,.5) 55%,rgba(70,210,195,.6))"></i></button>
+      </div>
     </div>
     <button class="btn" id="cullBtn" hidden data-i18n-attr="title:top.cullHint"><span data-i18n="top.cull"></span> <kbd>T</kbd></button>
     <button class="btn primary" id="finishBtn" hidden data-i18n-attr="title:top.finishHint" data-i18n="top.finish"></button>
@@ -91,6 +102,7 @@
   <div class="backdrop" id="backdrop"></div>
   <aside class="side" id="side">
     <div class="side-head"><b data-i18n="top.panel"></b><button class="btn quiet small" id="sideClose" data-i18n="lb.close"></button></div>
+    <div class="side-actions"><button class="btn small" id="sideOpen" data-i18n="top.open"></button><button class="btn small" id="sideReanalyse" data-i18n="top.reanalyse" data-i18n-attr="title:top.reanalyseHint"></button></div>
     <details class="group" open>
       <summary data-i18n="side.overview"></summary>
       <div class="stats" id="stats"></div>

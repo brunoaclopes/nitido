@@ -48,6 +48,8 @@ npm run models       # optional: keep the AI models in ./models to work fully of
 
 Reopening a folder is instant: results and your decisions are kept in the browser. After changing the AI models, or to pick up files added to the folder, **Reanalyse** measures it again from scratch and keeps your decisions.
 
+**Theme.** The half-circle button in the top bar switches between **Dark** (neutral greys, the default and the best for judging colour), **Light** and **Liquid glass** (floating glass panels and capsule controls in the style of macOS; it turns solid when the system asks for reduced transparency).
+
 **AI tier.** Under *AI models*, pick how much work the analysis does; the app suggests one for your computer from its cores, memory and the speed of earlier runs.
 
 | Tier | Similarity and quality | Subject detector | Download | Per photo* |
@@ -134,6 +136,8 @@ npm run models       # opcional: guarda os modelos em ./models para funcionar to
 ```
 
 Reabrir uma pasta é imediato: os resultados e as tuas decisões ficam guardados no browser. Depois de mudares os modelos de IA, ou para apanhar ficheiros novos na pasta, **Reanalisar** mede-a outra vez de raiz e mantém as tuas decisões.
+
+**Tema.** O botão do meio círculo na barra de cima muda entre **Escuro** (cinzentos neutros, o predefinido e o melhor para julgar a cor), **Claro** e **Vidro líquido** (painéis de vidro flutuantes e controlos em cápsula, ao estilo do macOS; fica opaco quando o sistema pede menos transparência).
 
 **Nível de IA.** Nos *Modelos de IA* escolhes quanto trabalho faz a análise: Leve (MobileCLIP S0, ~100 MB), Normal (MobileCLIP S2, ~220 MB), Pesado (SigLIP B/16, ~225 MB) ou Máximo (SigLIP 2 B/16, ~405 MB). A app sugere um para o teu computador a partir dos núcleos, da memória e da velocidade das análises anteriores. A tabela com os tempos medidos está [na versão inglesa](#use-it).
 

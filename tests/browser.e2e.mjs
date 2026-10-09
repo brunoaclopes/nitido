@@ -2,7 +2,7 @@
 // (Chrome DevTools Protocol over Node's built-in WebSocket, so Node ≥ 22).
 //
 //   node tests/browser.e2e.mjs --photos ~/Pictures/shoot [--only DSCF4793,DSCF4240] [--limit 40]
-//                              [--shots out-dir] [--keep-cache] [--headed]
+//                              [--shots out-dir] [--keep-cache] [--headed] [--theme dark|light|glass] [--audit]
 //
 // Fails on any uncaught page error or console.error (except a missing ./models/manifest.json),
 // when analysis does not finish, or when a photo ends in error. Screenshots of the gallery, the
@@ -193,7 +193,7 @@ try {
   await viewport(1440, 900);
   await page("Page.navigate", { url: BASE });
   await until(`document.readyState === "complete" && !!document.querySelector("#picker")`, 20000, "page load");
-  await evaluate(`localStorage.setItem("nitido-v3", JSON.stringify({ lang: "en", tier: ${JSON.stringify(opt("tier", "standard"))} })), location.reload(), true`).catch(() => {});
+  await evaluate(`localStorage.setItem("nitido-v3", JSON.stringify({ lang: "en", tier: ${JSON.stringify(opt("tier", "standard"))}, theme: ${JSON.stringify(opt("theme", "dark"))} })), location.reload(), true`).catch(() => {});
   await until(`document.readyState === "complete" && document.querySelector("[data-lang=en]")?.getAttribute("aria-pressed") === "true"`, 20000, "English UI");
   if (!flag("keep-cache")) await evaluate(`new Promise((r) => { const q = indexedDB.deleteDatabase("nitido"); q.onsuccess = q.onerror = q.onblocked = () => r(true); })`);
   await shot("01-empty-1440");
@@ -304,6 +304,13 @@ try {
   /* ---------- gallery at several widths ---------- */
   for (const [w, h, mobile] of [[1440, 900], [1100, 800], [820, 1000], [390, 844, true]]) {
     await viewport(w, h, mobile);
+    // the window itself never scrolls (only its panels do): name what sticks out below or to the right
+    const spill = await evaluate(`(() => { const d = document.scrollingElement; if (d.scrollHeight <= innerHeight + 1 && d.scrollWidth <= innerWidth + 1) return [];
+      const clipped = (n) => { for (let p = n.parentElement; p && p !== document.body; p = p.parentElement) { const s = getComputedStyle(p); if (s.overflow !== "visible" || s.position === "fixed") return true; } return false; };
+      return [...document.querySelectorAll("body *")].filter((n) => { const r = n.getBoundingClientRect(); return r.width && (r.bottom + scrollY > innerHeight + 1 || r.right + scrollX > innerWidth + 1) && getComputedStyle(n).position !== "fixed" && !clipped(n); })
+        .slice(0, 6).map((n) => (n.id ? "#" + n.id : n.tagName.toLowerCase() + "." + [...n.classList].join(".")) + " " + Math.round(n.getBoundingClientRect().bottom + scrollY) + "px"); })()`);
+    spill.length ? fail(`the page scrolls at ${w}px: ${spill.join("; ")}`) : ok(`the page itself does not scroll at ${w}px`);
+    await evaluate(`scrollTo(0, 0), true`);
     await shot(`03-gallery-${w}`);
     await audit(`gallery ${w}`, !!mobile);
     const o = await overflowReport(".main");
@@ -441,6 +448,15 @@ try {
   /* ---------- export (the menu, without writing into the photo folder) ---------- */
   await page("Browser.setDownloadBehavior", { behavior: "allow", downloadPath: SHOTS }, undefined).catch(() => {});
   await click("#exportBtn"); await sleep(200); await shot("09-export-menu");
+  // the top bar's menus must sit above the toolbar and the gallery (every point of them clickable)
+  const covered = async (menu) => evaluate(`(() => { const m = document.querySelector(${JSON.stringify(menu)}); if (m.hidden) return "not open";
+    const r = m.getBoundingClientRect(); return [[.5, .1], [.5, .5], [.5, .9], [.1, .9], [.9, .9]].map(([x, y]) => document.elementFromPoint(r.left + r.width * x, r.top + r.height * y))
+      .filter((n) => !m.contains(n)).map((n) => n?.className || n?.tagName).join(", "); })()`);
+  const exportCover = await covered("#exportMenu");
+  await click("#exportBtn"); await click("#themeBtn"); await sleep(200);
+  const themeCover = await covered("#themeMenu");
+  await shot("09-theme-menu"); await click("#themeBtn");
+  !exportCover && !themeCover ? ok("top bar menus sit above the page") : fail(`menus covered by: export [${exportCover}] theme [${themeCover}]`);
   await click('[data-export="csv"]'); await sleep(800);
   ok("CSV export ran");
 

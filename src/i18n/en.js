@@ -1,4 +1,5 @@
 export default {
+  "theme.title": "Theme", "theme.dark": "Dark", "theme.darkHint": "Neutral greys, the best for judging colour", "theme.light": "Light", "theme.lightHint": "Bright neutral greys, for daylight", "theme.glass": "Liquid glass", "theme.glassHint": "Floating glass panels, in the style of macOS",
   "top.panel": "Tuning panel", "top.stop": "Stop", "top.search": "Search file", "top.export": "Export", "top.open": "Open another folder",
 
   "export.xmp": "XMP sidecars", "export.xmpHintDir": "Written next to the photos, merged with existing XMP",

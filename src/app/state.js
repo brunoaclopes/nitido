@@ -10,7 +10,7 @@ import { debounce } from "../core/util.js";
 const KEY = "nitido-v3";
 const browserLang = (navigator.language || "en").toLowerCase().startsWith("pt") ? "pt" : "en";
 export const DEFAULTS = {
-  lang: browserLang,
+  lang: browserLang, theme: "dark",
   ...SCORING, ...GROUP_DEFAULTS,
   groupSort: "time", inGroupSort: "score", density: 220, showBoxes: true, showFaces: true, showMap: false,
   onlyBest: false, ai: { faces: true, objects: true, clip: true }, tier: null, usePersonal: false,

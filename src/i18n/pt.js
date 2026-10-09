@@ -1,4 +1,5 @@
 export default {
+  "theme.title": "Tema", "theme.dark": "Escuro", "theme.darkHint": "Cinzentos neutros, o melhor para julgar a cor", "theme.light": "Claro", "theme.lightHint": "Cinzentos neutros claros, para a luz do dia", "theme.glass": "Vidro líquido", "theme.glassHint": "Painéis de vidro flutuantes, ao estilo do macOS",
   "top.panel": "Painel de afinação", "top.stop": "Parar", "top.search": "Procurar ficheiro", "top.export": "Exportar", "top.open": "Abrir outra pasta",
 
   "export.xmp": "Sidecars XMP", "export.xmpHintDir": "Grava ao lado das fotos e junta-se aos XMP existentes",
