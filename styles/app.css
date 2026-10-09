@@ -26,7 +26,7 @@
   --shadow:0 18px 50px rgba(0,0,0,.45),0 2px 6px rgba(0,0,0,.25); --scrim:rgba(4,4,10,.35);
   --blur:blur(26px) saturate(190%) brightness(1.06); --blur-strong:blur(44px) saturate(200%) brightness(1.04);
   --fill:rgba(255,255,255,.075); --fill-hi:rgba(255,255,255,.14);
-  --lift:0 8px 24px rgba(0,0,0,.22),0 1px 2px rgba(0,0,0,.2),inset 0 0 14px rgba(255,255,255,.035);
+  --lift:0 2px 10px rgba(0,0,0,.18),inset 0 0 10px rgba(255,255,255,.025);
   --spring:cubic-bezier(.3,1.5,.5,1);
   --r:12px;
 }
@@ -433,10 +433,10 @@ kbd{font:inherit;font-size:12px;padding:1px 6px;border:1px solid var(--line);bor
   .app{grid-template-rows:auto minmax(0,1fr)}
   .top{flex-wrap:wrap;padding:8px 10px;gap:8px 10px}
   .brand span{display:none}
-  .session{order:2;flex:1 1 120px}
+  .session{order:2;flex:1 1 0;min-width:0}
   .lang,.theme-wrap{order:3}
-  #cullBtn,#finishBtn,#exportWrap{order:4;flex:1 1 28%}
-  #cullBtn,#finishBtn,#exportBtn{width:100%;justify-content:center}
+  #cullBtn,#finishBtn,#exportWrap{order:4;flex:1 1 calc((100% - 20px) / 3);min-width:0}
+  #cullBtn,#finishBtn,#exportBtn{width:100%;justify-content:center;padding-inline:8px}
   .spacer{display:none}
   .progress{order:10;flex-basis:100%;max-width:none}
   .search{order:11;flex-basis:100%;width:auto}
@@ -495,34 +495,40 @@ kbd{font:inherit;font-size:12px;padding:1px 6px;border:1px solid var(--line);bor
 /* the rim: a thin gradient border, bright where the light falls (top left) and again at the opposite corner */
 [data-theme="glass"] :is(.main,.menu,.toast,.btn,.icon-btn,.seg,.tabs,.search,.selbar,.drop)::before{
   content:"";position:absolute;inset:0;border-radius:inherit;padding:1px;pointer-events:none;z-index:1;
-  background:linear-gradient(155deg,rgba(255,255,255,.5),rgba(255,255,255,.12) 28%,rgba(255,255,255,.03) 55%,rgba(255,255,255,.08) 80%,rgba(255,255,255,.26));
+  background:linear-gradient(155deg,rgba(255,255,255,.3),rgba(255,255,255,.08) 28%,rgba(255,255,255,.02) 55%,rgba(255,255,255,.05) 80%,rgba(255,255,255,.14));
   -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask:linear-gradient(#000 0 0) content-box exclude,linear-gradient(#000 0 0)}
 [data-theme="glass"] :is(.btn,.icon-btn,.seg,.tabs,.search){position:relative}
 /* window: the panels float with a gap, nothing touches the edge */
 [data-theme="glass"] .app{padding:0 10px 10px;column-gap:10px}
 [data-theme="glass"] .top{background:transparent;border:0;padding:0 4px}
-[data-theme="glass"] .side{position:relative;border:0;border-radius:26px;background:var(--panel);-webkit-backdrop-filter:var(--blur-strong);backdrop-filter:var(--blur-strong);box-shadow:var(--edge),var(--shadow);scrollbar-width:none}
+[data-theme="glass"] .side{position:relative;border:0;border-radius:26px;background:var(--panel);box-shadow:var(--edge),var(--shadow);scrollbar-width:none}
 /* scrolling panels take their rim as an inset shadow, which stays put while the content scrolls */
 [data-theme="glass"] :is(.side,.panel,.modal-card,.help-card){--edge:inset 0 1px 0 rgba(255,255,255,.24),inset 0 0 0 1px rgba(255,255,255,.08)}
 [data-theme="glass"] .group{border-top-color:rgba(255,255,255,.07)}
-[data-theme="glass"] .main{position:relative;border-radius:26px;overflow:hidden;background:rgba(10,10,15,.66);-webkit-backdrop-filter:var(--blur-strong);backdrop-filter:var(--blur-strong);box-shadow:var(--shadow)}
-/* the toolbar floats over the photos; they scroll under it and blur away at its edge */
-[data-theme="glass"] .toolbar{position:absolute;top:0;left:0;right:0;z-index:5;border:0;padding:12px 14px 14px;background:linear-gradient(rgba(10,10,15,.62),rgba(10,10,15,.18) 75%,transparent)}
-[data-theme="glass"] .toolbar::after{content:"";position:absolute;inset:0 0 -18px;z-index:-1;pointer-events:none;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);
-  -webkit-mask:linear-gradient(#000 50%,transparent);mask:linear-gradient(#000 50%,transparent)}
+/* (the sidebar and the gallery sit on the smooth wallpaper, where a blur shows nothing: they are only
+   tinted, so scrolling the photos never has to redraw a blur behind them) */
+[data-theme="glass"] .main{position:relative;border-radius:26px;overflow:hidden;background:rgba(10,10,15,.5);box-shadow:var(--shadow)}
+/* the toolbar floats over the photos; they scroll under it and fade to dark at its edge (the scroll edge effect), so the glass controls stay readable */
+[data-theme="glass"] .toolbar{position:absolute;top:0;left:0;right:0;z-index:5;border:0;padding:12px 14px 14px;background:linear-gradient(rgba(10,10,15,.82),rgba(10,10,15,.6) 62%,rgba(10,10,15,0));pointer-events:none}
+[data-theme="glass"] .toolbar > *{pointer-events:auto}
 [data-theme="glass"] .selbar{position:absolute;z-index:5;top:var(--tbh,60px);left:14px;right:14px;border:0;border-radius:20px;padding:8px 12px;background:rgba(44,44,54,.55);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);box-shadow:var(--lift)}
 [data-theme="glass"] .scroller{scroll-padding-top:var(--tbh,60px);padding-top:calc(var(--tbh,60px) + var(--sbh,0px) + 6px);scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.22) transparent}
 /* controls: capsules of glass */
 [data-theme="glass"] :is(.btn,.select,.search,.seg,.tabs,.icon-btn){border:0;border-radius:999px;background-color:var(--fill);box-shadow:var(--lift);
   transition:background-color .2s,transform .35s var(--spring),box-shadow .2s}
-[data-theme="glass"] :is(.top,.toolbar) :is(.btn,.select,.search,.seg,.tabs,.icon-btn){-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur)}
+[data-theme="glass"] :is(.top,.toolbar) :is(.btn:not(.quiet),.select,.search,.seg,.tabs,.icon-btn){-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur)}
 [data-theme="glass"] :is(.btn,.icon-btn,.select):hover{background-color:var(--fill-hi)}
 [data-theme="glass"] :is(.btn,.icon-btn,.seg button,.tab):active{transform:scale(.95)}
-[data-theme="glass"] .btn.quiet{background-color:var(--fill);color:var(--ink)}
-[data-theme="glass"] .btn.primary{background:var(--accent);color:#fff;font-weight:600;box-shadow:0 6px 18px rgba(0,113,227,.38),inset 0 1px 0 rgba(255,255,255,.35)}
+[data-theme="glass"] .btn.quiet{background-color:transparent;box-shadow:none;color:var(--ink);-webkit-backdrop-filter:none;backdrop-filter:none}
+[data-theme="glass"] .btn.quiet::before{display:none}
+[data-theme="glass"] .btn.quiet:hover{background-color:var(--fill-hi)}
+[data-theme="glass"] .btn.primary{background:var(--accent);color:#fff;font-weight:600;box-shadow:0 2px 10px rgba(0,113,227,.28),inset 0 1px 0 rgba(255,255,255,.22)}
 [data-theme="glass"] .btn.primary:hover{background:#0a7cf0}
 [data-theme="glass"] .icon-btn{color:var(--ink)}
 [data-theme="glass"] .select{padding-left:14px}
+[data-theme="glass"] .toolbar :is(.tabs,.select,.icon-btn){background-color:rgba(22,22,30,.55)}
+[data-theme="glass"] .top :is(.btn:not(.quiet):not(.primary),.seg,.search,.icon-btn){background-color:rgba(22,22,30,.4)}
+[data-theme="glass"] .top :is(.btn:not(.quiet):not(.primary),.icon-btn):hover{background-color:rgba(44,44,54,.55)}
 [data-theme="glass"] .search{padding:0 14px}
 [data-theme="glass"] .search:focus-within{outline-offset:3px}
 /* segmented controls: a glass thumb on a glass track */
@@ -546,7 +552,7 @@ kbd{font:inherit;font-size:12px;padding:1px 6px;border:1px solid var(--line);bor
 [data-theme="glass"] .card:hover{transform:translateY(-2px)}
 [data-theme="glass"] .frame{border-radius:14px;overflow:hidden;background:rgba(0,0,0,.28);box-shadow:0 6px 18px rgba(0,0,0,.25)}
 [data-theme="glass"] .card.sel .frame{outline:3px solid var(--ring);outline-offset:3px}
-[data-theme="glass"] .badges span{border-radius:999px;padding:1px 8px;background:rgba(20,20,26,.6);-webkit-backdrop-filter:blur(12px) saturate(180%);backdrop-filter:blur(12px) saturate(180%)}
+[data-theme="glass"] .badges span{border-radius:999px;padding:1px 8px;background:rgba(20,20,26,.72)}
 [data-theme="glass"] .sec-head{border-bottom-color:rgba(255,255,255,.08)}
 [data-theme="glass"] .sec-head .btn{position:relative}
 [data-theme="glass"] .sec-head .gname:focus{border-radius:8px}
@@ -570,7 +576,7 @@ kbd{font:inherit;font-size:12px;padding:1px 6px;border:1px solid var(--line);bor
 [data-theme="glass"] :is(.cull-head,.cmp-head){border-bottom:0}
 [data-theme="glass"] .pane{border-radius:18px;overflow:hidden}
 @media (max-width:1180px){
-  [data-theme="glass"] .side{position:fixed;top:calc(var(--top) + 4px);bottom:10px;left:10px;width:min(var(--side),calc(100vw - 40px));transform:translateX(calc(-100% - 20px))}
+  [data-theme="glass"] .side{-webkit-backdrop-filter:var(--blur-strong);backdrop-filter:var(--blur-strong);position:fixed;top:calc(var(--top) + 4px);bottom:10px;left:10px;width:min(var(--side),calc(100vw - 40px));transform:translateX(calc(-100% - 20px))}
   [data-theme="glass"] .app.side-open .side{transform:none}
   [data-theme="glass"] .side-head{background:rgba(36,36,46,.55);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border-bottom-color:rgba(255,255,255,.08)}
   [data-theme="glass"] .app.side-open .backdrop{background:rgba(0,0,0,.25)}
@@ -581,7 +587,9 @@ kbd{font:inherit;font-size:12px;padding:1px 6px;border:1px solid var(--line);bor
   [data-theme="glass"] .top{padding:8px 4px}
   [data-theme="glass"] .side{top:8px;bottom:8px;left:8px}
   [data-theme="glass"] .main{border-radius:22px}
-  [data-theme="glass"] .toolbar{padding:10px}
+  [data-theme="glass"] .toolbar{position:relative;padding:10px;background:transparent;border-bottom:1px solid rgba(255,255,255,.08)}
+  [data-theme="glass"] .selbar{position:relative;top:auto;left:auto;right:auto;margin:8px 10px 0}
+  [data-theme="glass"] .scroller{scroll-padding-top:0;padding-top:12px}
 }
 /* when the system asks for less transparency, glass turns solid */
 @media (prefers-reduced-transparency:reduce){

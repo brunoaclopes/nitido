@@ -46,9 +46,9 @@ npm start            # opens http://127.0.0.1:4173
 npm run models       # optional: keep the AI models in ./models to work fully offline
 ```
 
-Reopening a folder is instant: results and your decisions are kept in the browser. After changing the AI models, or to pick up files added to the folder, **Reanalyse** measures it again from scratch and keeps your decisions.
+Reopening a folder is instant: results and your decisions are kept in the browser, saved as you go. A refresh in the middle of a shoot loses nothing: in Chrome and Edge the folder reopens by itself, on the same filters and photo; elsewhere the start screen asks for the folder again and nothing is measured twice. After changing the AI models, or to pick up files added to the folder, **Reanalyse** measures it again from scratch and keeps your decisions.
 
-**Theme.** The half-circle button in the top bar switches between **Dark** (neutral greys, the default and the best for judging colour), **Light** and **Liquid glass** (floating glass panels and capsule controls in the style of macOS; it turns solid when the system asks for reduced transparency).
+**Theme.** The half-circle button in the top bar switches between **Dark** (neutral greys, the default and the best for judging colour), **Light** and **Liquid glass** (floating glass panels and capsule controls in the style of macOS; in Chrome and Edge the glass really bends light at its rim, like a lens, after [kube.io’s write-up](https://kube.io/blog/liquid-glass-css-svg/); it turns solid when the system asks for reduced transparency).
 
 **AI tier.** Under *AI models*, pick how much work the analysis does; the app suggests one for your computer from its cores, memory and the speed of earlier runs.
 
@@ -135,9 +135,9 @@ npm start            # abre http://127.0.0.1:4173
 npm run models       # opcional: guarda os modelos em ./models para funcionar totalmente offline
 ```
 
-Reabrir uma pasta é imediato: os resultados e as tuas decisões ficam guardados no browser. Depois de mudares os modelos de IA, ou para apanhar ficheiros novos na pasta, **Reanalisar** mede-a outra vez de raiz e mantém as tuas decisões.
+Reabrir uma pasta é imediato: os resultados e as tuas decisões ficam guardados no browser, à medida que avanças. Um refresh a meio de uma sessão não perde nada: no Chrome e no Edge a pasta reabre sozinha, nos mesmos filtros e na mesma foto; nos outros browsers o ecrã inicial pede a pasta outra vez e nada é medido duas vezes. Depois de mudares os modelos de IA, ou para apanhar ficheiros novos na pasta, **Reanalisar** mede-a outra vez de raiz e mantém as tuas decisões.
 
-**Tema.** O botão do meio círculo na barra de cima muda entre **Escuro** (cinzentos neutros, o predefinido e o melhor para julgar a cor), **Claro** e **Vidro líquido** (painéis de vidro flutuantes e controlos em cápsula, ao estilo do macOS; fica opaco quando o sistema pede menos transparência).
+**Tema.** O botão do meio círculo na barra de cima muda entre **Escuro** (cinzentos neutros, o predefinido e o melhor para julgar a cor), **Claro** e **Vidro líquido** (painéis de vidro flutuantes e controlos em cápsula, ao estilo do macOS; no Chrome e no Edge o vidro dobra mesmo a luz, com mapas de deslocamento calculados a partir de uma borda de vidro curva; fica opaco quando o sistema pede menos transparência).
 
 **Nível de IA.** Nos *Modelos de IA* escolhes quanto trabalho faz a análise: Leve (MobileCLIP S0, ~100 MB), Normal (MobileCLIP S2, ~220 MB), Pesado (SigLIP B/16, ~225 MB) ou Máximo (SigLIP 2 B/16, ~405 MB). A app sugere um para o teu computador a partir dos núcleos, da memória e da velocidade das análises anteriores. A tabela com os tempos medidos está [na versão inglesa](#use-it).
 

@@ -14,6 +14,8 @@ import { clipStatus, onClipStatus } from "./ml/clip.js";
 import { $, $$, esc, fmtNum, fmtDuration, toast, revokeAll } from "./ui/dom.js";
 import { renderToolbar, layout, refresh, appendLive, visibleOrder, setDensity } from "./ui/gallery.js";
 import { drawHist, bindHist } from "./ui/histogram.js";
+import { setLiquidGlass } from "./ui/glass.js";
+import { setWallpaper } from "./ui/wallpaper.js";
 import { openLightbox, closeLightbox, render as renderLb, step, stepGroup, zoomFocus, toggleView, bindLightbox, lbState } from "./ui/lightbox.js";
 import { openCompare, closeCompare, bindCompare, cmpState, choose, zoomFocus as cmpZoom } from "./ui/compare.js";
 import { openCull, closeCull, cullKey, refreshCull, bindCull, cullState } from "./ui/cull.js";
@@ -494,6 +496,8 @@ function applyTheme() {
   if (th === "dark") delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = th;
   $('meta[name="theme-color"]')?.setAttribute("content", THEME_COLOR[th]);
   $$("#themeMenu [data-theme]").forEach((b) => b.setAttribute("aria-checked", String(b.dataset.theme === th)));
+  setLiquidGlass(th === "glass");
+  setWallpaper(th === "glass");
   requestAnimationFrame(drawHist);
 }
 function bindTheme() {

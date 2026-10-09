@@ -318,6 +318,26 @@ try {
     const o = await overflowReport(".main");
     o.length ? fail(`gallery overflows at ${w}px: ${o.join("; ")}`) : ok(`gallery fits at ${w}px`);
   }
+  if (opt("theme", "dark") === "glass") {
+    // the bending glass: SVG refraction filters on the floating controls (Chromium)
+    await viewport(1440, 900);
+    const lg = await evaluate(`({ on: document.documentElement.classList.contains("lg-refract"), n: [...document.querySelectorAll("*")].filter((n) => n.style.backdropFilter.includes("#lg")).length, filters: document.querySelectorAll("filter[id^=lg]").length })`);
+    const wall = await evaluate(`(() => { const c = document.querySelector("#wall"); return c ? c.width + "×" + c.height : ""; })()`);
+    wall ? ok(`moving wallpaper drawn at ${wall} px`) : fail("no moving wallpaper in the glass theme");
+    lg.on && lg.n > 5 ? ok(`liquid glass bends light on ${lg.n} controls (${lg.filters} filters)`) : fail("liquid glass refraction is off: " + JSON.stringify(lg));
+    await evaluate(`document.querySelector("#scroller").scrollTop = 210, true`); await sleep(600);
+    await shot("03-glass-over-photos");
+
+    await evaluate(`document.querySelector("#scroller").scrollTop = 0, true`);
+  }
+  await viewport(1440, 900);
+  // fast scrolling: frame times while the gallery moves 120 px a frame, down and back up
+  const fr = await evaluate(`new Promise((done) => { const sc = document.querySelector("#scroller"), ts = []; let n = 0, dir = 1, last = performance.now();
+    const step = (t) => { ts.push(t - last); last = t; sc.scrollTop += 120 * dir; if (sc.scrollTop + sc.clientHeight >= sc.scrollHeight - 2) dir = -1;
+      if (++n < 120) requestAnimationFrame(step); else { ts.shift(); ts.sort((a, b) => a - b); done({ median: ts[ts.length >> 1], p95: ts[Math.floor(ts.length * 0.95)], max: ts[ts.length - 1] }); } };
+    requestAnimationFrame(step); })`);
+  console.log(`  scrolling: median ${fr.median.toFixed(1)} ms, 95th percentile ${fr.p95.toFixed(1)} ms, worst ${fr.max.toFixed(1)} ms per frame`);
+  await evaluate(`document.querySelector("#scroller").scrollTop = 0, true`);
   // the tuning panel opens as a drawer on a phone and can be closed again
   await viewport(390, 844, true);
   await click("#menuBtn"); await sleep(400);
